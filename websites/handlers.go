@@ -1,0 +1,160 @@
+package websites
+
+import (
+	. "litloop/backend/internal/httpapi"
+	"litloop/backend/internal/models"
+	"net/url"
+	"strings"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+)
+
+func (s *Handler) Search(q *Request) any {
+	term := strings.TrimSpace(q.R.URL.Query().Get("q"))
+	if term == "" {
+		term = q.R.URL.Query().Get("query")
+	}
+	if q.R.Method == "POST" {
+		term = strings.TrimSpace(Str(q.Body()["q"]))
+	}
+	path := q.R.URL.Path
+	if path == "/websites/all" || path == "/websites/search" {
+		db := s.DB.Order("created_at DESC")
+		if term != "" {
+			like := "%" + strings.ToLower(term) + "%"
+			db = db.Where("LOWER(title) LIKE ? OR LOWER(body) LIKE ?", like, like)
+		}
+		return map[string]any{"results": All[models.Website](db)}
+	}
+	if term == "" {
+		Fail(400, "q is required")
+	}
+	if len(term) > 500 {
+		Fail(400, "Query too long")
+	}
+	images := strings.Contains(path, "images") || strings.Contains(path, "custom")
+	brave := strings.Contains(path, "brave")
+	if brave && !images {
+		var cached models.Query
+		if s.DB.First(&cached, "query_text = ? AND is_crawled = ?", term, true).Error == nil {
+			return map[string]any{"query_text": term, "is_crawled": true, "cached": true, "results": All[models.Website](s.DB.Where("query = ?", term).Order("created_at DESC"))}
+		}
+	}
+	target := ""
+	headers := map[string]string{}
+	provider := "google"
+	switch {
+	case brave:
+		provider = "brave"
+		if s.Config.BraveKey == "" {
+			Fail(503, "BRAVE_API_KEY is not configured")
+		}
+		kind := "web"
+		if images {
+			kind = "images"
+		}
+		target = "https://api.search.brave.com/res/v1/" + kind + "/search?q=" + url.QueryEscape(term)
+		headers["X-Subscription-Token"] = s.Config.BraveKey
+	case strings.Contains(path, "bing"):
+		provider = "bing"
+		if s.Config.BingKey == "" {
+			Fail(503, "BING_API_KEY is not configured")
+		}
+		kind := "search"
+		if images {
+			kind = "images/search"
+		}
+		target = "https://api.bing.microsoft.com/v7.0/" + kind + "?q=" + url.QueryEscape(term)
+		headers["Ocp-Apim-Subscription-Key"] = s.Config.BingKey
+	default:
+		if s.Config.GoogleSearchKey == "" || s.Config.GoogleSearchCX == "" {
+			Fail(503, "Google custom search is not configured")
+		}
+		target = "https://www.googleapis.com/customsearch/v1?" + url.Values{"key": {s.Config.GoogleSearchKey}, "cx": {s.Config.GoogleSearchCX}, "q": {term}, "searchType": {"image"}}.Encode()
+	}
+	payload, ok := s.FetchJSON(q, "GET", target, nil, headers).(map[string]any)
+	if !ok {
+		Fail(502, "Invalid search response")
+	}
+	results := []any{}
+	if images {
+		switch provider {
+		case "google":
+			results, _ = payload["items"].([]any)
+		case "bing":
+			results, _ = payload["value"].([]any)
+		case "brave":
+			if nested, ok := payload["images"].(map[string]any); ok {
+				results, _ = nested["results"].([]any)
+			}
+			if results == nil {
+				results, _ = payload["results"].([]any)
+			}
+		}
+		if results == nil {
+			results = []any{}
+		}
+		for _, value := range results {
+			r, ok := value.(map[string]any)
+			if !ok {
+				continue
+			}
+			uri := Str(r["url"])
+			if uri == "" {
+				uri = Str(r["link"])
+			}
+			if !ValidURL(uri) {
+				continue
+			}
+			thumb := Str(r["thumbnail"])
+			if nested, ok := r["thumbnail"].(map[string]any); ok {
+				thumb = Str(nested["src"])
+			}
+			image := models.WebsiteImage{URL: uri, Title: Str(r["title"]), Description: Str(r["description"]), PageURL: Str(r["page_url"]), Thumbnail: thumb, Height: Str(r["height"]), Width: Str(r["width"])}
+			Check(s.DB.Where("url = ?", uri).FirstOrCreate(&image).Error)
+		}
+		if provider == "brave" {
+			return results
+		}
+		if provider == "google" {
+			return map[string]any{"items": results}
+		}
+		return map[string]any{"results": results}
+	}
+	key := "web"
+	listKey := "results"
+	if provider == "bing" {
+		key = "webPages"
+		listKey = "value"
+	}
+	if nested, ok := payload[key].(map[string]any); ok {
+		results, _ = nested[listKey].([]any)
+	}
+	if results == nil {
+		results = []any{}
+	}
+	if brave {
+		normalized := []any{}
+		q.Tx(func(tx *gorm.DB) error {
+			for _, entry := range results {
+				r, ok := entry.(map[string]any)
+				if !ok {
+					continue
+				}
+				uri := Str(r["url"])
+				if !ValidURL(uri) {
+					continue
+				}
+				w := models.Website{URL: uri, Title: Str(r["title"]), Body: Str(r["description"]), Favicon: Str(r["favicon"]), Query: term}
+				Check(tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "url"}}, DoUpdates: clause.AssignmentColumns([]string{"title", "body", "favicon", "query", "updated_at"})}).Create(&w).Error)
+				normalized = append(normalized, map[string]any{"url": w.URL, "title": w.Title, "body": w.Body, "favicon": w.Favicon})
+			}
+			var query models.Query
+			Check(tx.Where("query_text = ?", term).FirstOrCreate(&query, models.Query{QueryText: term}).Error)
+			return tx.Model(&query).Update("is_crawled", true).Error
+		})
+		return map[string]any{"query_text": term, "is_crawled": true, "cached": false, "results": normalized}
+	}
+	return map[string]any{"results": results}
+}

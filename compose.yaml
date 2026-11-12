@@ -1,0 +1,61 @@
+x-app: &app
+  build: .
+  image: litloop-go:local
+  env_file: .env
+  environment: &environment
+    HTTP_ADDR: :8000
+    DATABASE_URL: postgres://litloop:litloop@db:5432/litloop?sslmode=disable
+    REDIS_URL: redis://redis:6379/0
+    MEDIA_DIR: /app/media
+    AUTO_MIGRATE: "false"
+    JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+  volumes:
+    - media:/app/media
+
+services:
+  db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: litloop
+      POSTGRES_USER: litloop
+      POSTGRES_PASSWORD: litloop
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litloop -d litloop"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  migrate:
+    <<: *app
+    entrypoint: ["migrate"]
+    depends_on:
+      db:
+        condition: service_healthy
+  api:
+    <<: *app
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+  worker:
+    <<: *app
+    entrypoint: ["worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+volumes:
+  postgres:
+  media:

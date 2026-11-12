@@ -1,0 +1,147 @@
+name: Deploy to GCE
+
+# Deploys LitLoop to a Google Compute Engine VM without Docker.
+#
+# Flow:
+#   1. Build static Linux binaries in GitHub Actions.
+#   2. Package the binaries and systemd units into a tar.gz archive.
+#   3. Upload the archive + deploy script to the VM over SSH.
+#   4. Install binaries, run migrations and restart systemd services.
+#
+# Required GitHub repository variables (Settings -> Secrets and variables -> Actions -> Variables):
+#   GCP_PROJECT_ID             - Google Cloud project ID
+#   GCP_ZONE                   - VM zone, e.g. europe-west1-b
+#   GCP_INSTANCE_NAME          - Compute Engine instance name
+#   GCP_VM_ARCH                - VM architecture: amd64 (default) or arm64
+#   GCP_APP_DIR                - Temporary upload directory (default: /var/tmp/litloop-deploy)
+#   GCP_USE_IAP                - Use an IAP tunnel for SSH (default: true)
+#   GCP_RUN_MIGRATIONS         - Set to "false" to skip migrations (default: true)
+#
+# Required GitHub repository secrets:
+#   GCP_WORKLOAD_IDENTITY_PROVIDER - projects/<number>/locations/global/workloadIdentityPools/<pool>/providers/<provider>
+#   GCP_DEPLOY_SERVICE_ACCOUNT     - Service account used by GitHub Actions
+#
+# VM prerequisites:
+#   - PostgreSQL and Redis are reachable (local packages or managed GCP services).
+#   - FFmpeg is installed for media processing.
+#   - /etc/litloop/litloop.env exists, see deploy/litloop.env.example.
+#   - The SSH user has passwordless sudo and can restart systemd services.
+#   - If GCP_USE_IAP=true, the deploy service account needs roles/iap.tunnelResourceAccessor.
+#
+# The deploy service account also needs permissions to inspect the instance and SSH to it,
+# for example roles/compute.instanceAdmin.v1 and roles/iam.serviceAccountUser, plus
+# roles/compute.osAdminLogin when OS Login is enabled.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-gce-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  ZONE: ${{ vars.GCP_ZONE }}
+  INSTANCE: ${{ vars.GCP_INSTANCE_NAME }}
+  APP_DIR: ${{ vars.GCP_APP_DIR || '/var/tmp/litloop-deploy' }}
+  VM_ARCH: ${{ vars.GCP_VM_ARCH || 'amd64' }}
+  USE_IAP: ${{ vars.GCP_USE_IAP || 'true' }}
+  RUN_MIGRATIONS: ${{ vars.GCP_RUN_MIGRATIONS || 'true' }}
+  ARCHIVE: litloop-release.tar.gz
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build static binaries
+        run: |
+          rm -rf dist release
+          mkdir -p dist release/bin release/systemd
+
+          for cmd in litloop-go-server worker migrate admin; do
+            out="$cmd"
+            if [[ "$cmd" != "litloop-go-server" ]]; then
+              out="litloop-$cmd"
+            fi
+            echo "Building $cmd as $out for linux/$VM_ARCH"
+            CGO_ENABLED=0 GOOS=linux GOARCH="$VM_ARCH" \
+              go build -trimpath -ldflags="-s -w" \
+              -o "dist/$out" "./cmd/$cmd"
+          done
+
+          cp dist/* release/bin/
+          cp deploy/systemd/*.service release/systemd/
+          tar -czf "$ARCHIVE" -C release .
+          ls -lh "$ARCHIVE"
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Create upload directory on the VM
+        run: |
+          SSH_FLAGS=()
+          if [[ "$USE_IAP" == "true" ]]; then
+            SSH_FLAGS+=(--tunnel-through-iap)
+          fi
+
+          gcloud compute ssh "$INSTANCE" \
+            --zone "$ZONE" \
+            --quiet \
+            "${SSH_FLAGS[@]}" \
+            --command "mkdir -p '$APP_DIR'"
+
+      - name: Upload release
+        run: |
+          SSH_FLAGS=()
+          if [[ "$USE_IAP" == "true" ]]; then
+            SSH_FLAGS+=(--tunnel-through-iap)
+          fi
+
+          gcloud compute scp \
+            "$ARCHIVE" scripts/deploy-gce.sh \
+            "${INSTANCE}:${APP_DIR}/" \
+            --zone "$ZONE" \
+            --quiet \
+            "${SSH_FLAGS[@]}"
+
+      - name: Deploy on the VM
+        run: |
+          SSH_FLAGS=()
+          if [[ "$USE_IAP" == "true" ]]; then
+            SSH_FLAGS+=(--tunnel-through-iap)
+          fi
+
+          gcloud compute ssh "$INSTANCE" \
+            --zone "$ZONE" \
+            --quiet \
+            "${SSH_FLAGS[@]}" \
+            --command "
+              GCP_RUN_MIGRATIONS='$RUN_MIGRATIONS' \
+              bash '$APP_DIR/deploy-gce.sh' '$APP_DIR/$ARCHIVE'
+            "

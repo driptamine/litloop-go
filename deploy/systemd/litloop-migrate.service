@@ -1,0 +1,15 @@
+[Unit]
+Description=LitLoop database migrations
+Wants=network-online.target
+After=network-online.target postgresql.service redis-server.service
+
+[Service]
+Type=oneshot
+User=litloop
+Group=litloop
+EnvironmentFile=/etc/litloop/litloop.env
+WorkingDirectory=/var/lib/litloop
+StateDirectory=litloop
+ExecStart=/usr/local/bin/litloop-migrate
+NoNewPrivileges=true
+PrivateTmp=true

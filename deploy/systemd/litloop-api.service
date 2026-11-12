@@ -1,0 +1,22 @@
+[Unit]
+Description=LitLoop API
+Wants=network-online.target
+After=network-online.target postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=litloop
+Group=litloop
+EnvironmentFile=/etc/litloop/litloop.env
+WorkingDirectory=/var/lib/litloop
+StateDirectory=litloop
+ExecStart=/usr/local/bin/litloop-go-server
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+LimitNOFILE=65536
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

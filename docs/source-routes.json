@@ -1,0 +1,1187 @@
+[
+  {
+    "path": "/users/signup",
+    "handler": "signup_view",
+    "source": "users/urls.py:30"
+  },
+  {
+    "path": "/users/signin",
+    "handler": "signin_view",
+    "source": "users/urls.py:31"
+  },
+  {
+    "path": "/users/me",
+    "handler": "user_me_view",
+    "source": "users/urls.py:32"
+  },
+  {
+    "path": "/users/me/avatar",
+    "handler": "upload_avatar_view",
+    "source": "users/urls.py:33"
+  },
+  {
+    "path": "/users/me/avatar/gcs",
+    "handler": "gcs_upload_avatar_view",
+    "source": "users/urls.py:36"
+  },
+  {
+    "path": "/users/me/avatar/r2",
+    "handler": "r2_upload_avatar_view",
+    "source": "users/urls.py:38"
+  },
+  {
+    "path": "/users/callback",
+    "handler": "signin_view",
+    "source": "users/urls.py:40"
+  },
+  {
+    "path": "/users/token",
+    "handler": "google_token_exchange_view",
+    "source": "users/urls.py:41"
+  },
+  {
+    "path": "/users/token",
+    "handler": "google_token_exchange_view",
+    "source": "users/urls.py:42"
+  },
+  {
+    "path": "/users/list",
+    "handler": "userlist",
+    "source": "users/urls.py:44"
+  },
+  {
+    "path": "/users/search",
+    "handler": "user_search_api",
+    "source": "users/urls.py:45"
+  },
+  {
+    "path": "/users/<int:user_id>",
+    "handler": "user_detail_api",
+    "source": "users/urls.py:46"
+  },
+  {
+    "path": "/users/<int:user_id>/role",
+    "handler": "update_user_role_view",
+    "source": "users/urls.py:47"
+  },
+  {
+    "path": "/users/<int:user_id>/watchlist",
+    "handler": "user_watchlist_api",
+    "source": "users/urls.py:48"
+  },
+  {
+    "path": "/users/<str:username>",
+    "handler": "user_username_detail_api",
+    "source": "users/urls.py:50"
+  },
+  {
+    "path": "/users/<str:username>/posts",
+    "handler": "user_username_posts_api",
+    "source": "users/urls.py:51"
+  },
+  {
+    "path": "/users/<str:username>/photos",
+    "handler": "user_username_photos_api",
+    "source": "users/urls.py:52"
+  },
+  {
+    "path": "/users/<str:username>/albums",
+    "handler": "user_username_albums_api",
+    "source": "users/urls.py:53"
+  },
+  {
+    "path": "/users/<str:username>/videos",
+    "handler": "user_username_videos_api",
+    "source": "users/urls.py:54"
+  },
+  {
+    "path": "/users/<str:username>/tracks",
+    "handler": "user_username_tracks_api",
+    "source": "users/urls.py:55"
+  },
+  {
+    "path": "/users/<str:username>/watchlist",
+    "handler": "user_username_watchlist_api",
+    "source": "users/urls.py:56"
+  },
+  {
+    "path": "/users/password-reset",
+    "handler": "forgot_password_api",
+    "source": "users/urls.py:58"
+  },
+  {
+    "path": "/users/password-reset-confirm/<str:uidb64>/<str:token>",
+    "handler": "password_reset_confirm_api",
+    "source": "users/urls.py:59"
+  },
+  {
+    "path": "/videos/launch-spot",
+    "handler": "views_spot.launch_spot",
+    "source": "videos/urls.py:18"
+  },
+  {
+    "path": "/videos/create_presigned_url",
+    "handler": "s3_views_qalybay.create_presigned_url  )",
+    "source": "videos/urls.py:20"
+  },
+  {
+    "path": "/videos/get_presigned_url",
+    "handler": "s3_views_qalybay.get_presigned_url  )",
+    "source": "videos/urls.py:21"
+  },
+  {
+    "path": "/videos/complete_upload",
+    "handler": "s3_views_qalybay.complete_upload  )",
+    "source": "videos/urls.py:22"
+  },
+  {
+    "path": "/videos/gcs/create_presigned_url",
+    "handler": "gcs_video_views.gcs_initiate_video_upload",
+    "source": "videos/urls.py:25"
+  },
+  {
+    "path": "/videos/gcs/get_presigned_url",
+    "handler": "gcs_video_views.gcs_get_video_part_url",
+    "source": "videos/urls.py:26"
+  },
+  {
+    "path": "/videos/gcs/complete_upload",
+    "handler": "gcs_video_views.gcs_complete_video_upload",
+    "source": "videos/urls.py:27"
+  },
+  {
+    "path": "/videos/gcs/native/initiate",
+    "handler": "gcs_native_video_views.gcs_native_initiate_video_upload",
+    "source": "videos/urls.py:30"
+  },
+  {
+    "path": "/videos/gcs/native/complete",
+    "handler": "gcs_native_video_views.gcs_native_complete_video_upload",
+    "source": "videos/urls.py:31"
+  },
+  {
+    "path": "/videos/r2/create_presigned_url",
+    "handler": "r2_video_views.r2_initiate_video_upload",
+    "source": "videos/urls.py:34"
+  },
+  {
+    "path": "/videos/r2/get_presigned_url",
+    "handler": "r2_video_views.r2_get_video_part_url",
+    "source": "videos/urls.py:35"
+  },
+  {
+    "path": "/videos/r2/complete_upload",
+    "handler": "r2_video_views.r2_complete_video_upload",
+    "source": "videos/urls.py:36"
+  },
+  {
+    "path": "/videos/create_video",
+    "handler": "s3_views_qalybay.create_video  )",
+    "source": "videos/urls.py:38"
+  },
+  {
+    "path": "/videos/api/save_playback",
+    "handler": "views.save_playback_time)",
+    "source": "videos/urls.py:43"
+  },
+  {
+    "path": "/videos/api/get_playback_time",
+    "handler": "views.get_playback_time)",
+    "source": "videos/urls.py:44"
+  },
+  {
+    "path": "/videos/<int:video_id>",
+    "handler": "views.video_detail_api",
+    "source": "videos/urls.py:47"
+  },
+  {
+    "path": "/videos/<int:video_id>/comments",
+    "handler": "views.list_video_comments",
+    "source": "videos/urls.py:48"
+  },
+  {
+    "path": "/videos/<int:video_id>/comments/create",
+    "handler": "views.create_video_comment",
+    "source": "videos/urls.py:49"
+  },
+  {
+    "path": "/posts/create",
+    "handler": "post_api_view",
+    "source": "posts/urls.py:30"
+  },
+  {
+    "path": "/posts/me",
+    "handler": "current_user_posts_view",
+    "source": "posts/urls.py:31"
+  },
+  {
+    "path": "/posts/user/<str:username>",
+    "handler": "user_posts_view",
+    "source": "posts/urls.py:32"
+  },
+  {
+    "path": "/posts/create/create_post_with_line_breaks",
+    "handler": "create_post_with_line_breaks",
+    "source": "posts/urls.py:33"
+  },
+  {
+    "path": "/posts/create/v4",
+    "handler": "create_post",
+    "source": "posts/urls.py:35"
+  },
+  {
+    "path": "/posts/create/postman",
+    "handler": "create_post_with_photos",
+    "source": "posts/urls.py:36"
+  },
+  {
+    "path": "/posts/create/post_with_videos",
+    "handler": "create_post_with_video",
+    "source": "posts/urls.py:37"
+  },
+  {
+    "path": "/posts/create_post_api",
+    "handler": "create_post_with_media",
+    "source": "posts/urls.py:40"
+  },
+  {
+    "path": "/posts/create_no_drf",
+    "handler": "create_post_no_drf",
+    "source": "posts/urls.py:41"
+  },
+  {
+    "path": "/posts/update_no_drf/<int:post_id>",
+    "handler": "update_post_no_drf",
+    "source": "posts/urls.py:42"
+  },
+  {
+    "path": "/posts/delete_no_drf/<int:post_id>",
+    "handler": "delete_post_no_drf",
+    "source": "posts/urls.py:43"
+  },
+  {
+    "path": "/posts/list_no_drf",
+    "handler": "list_of_posts",
+    "source": "posts/urls.py:44"
+  },
+  {
+    "path": "/posts/detail_no_drf/<int:post_id>",
+    "handler": "post_detail",
+    "source": "posts/urls.py:45"
+  },
+  {
+    "path": "/posts/list",
+    "handler": "list_of_posts",
+    "source": "posts/urls.py:49"
+  },
+  {
+    "path": "/posts/<int:post_id>",
+    "handler": "post_api_view",
+    "source": "posts/urls.py:50"
+  },
+  {
+    "path": "/posts/feed",
+    "handler": "feed_view",
+    "source": "posts/urls.py:54"
+  },
+  {
+    "path": "/posts/impressions/batch",
+    "handler": "record_post_impressions",
+    "source": "posts/urls.py:57"
+  },
+  {
+    "path": "/posts/<int:post_id>/like",
+    "handler": "post_like_view",
+    "source": "posts/urls.py:58"
+  },
+  {
+    "path": "/posts/<int:post_id>/comments",
+    "handler": "list_post_comments",
+    "source": "posts/urls.py:61"
+  },
+  {
+    "path": "/posts/<int:post_id>/comments/create",
+    "handler": "create_post_comment",
+    "source": "posts/urls.py:62"
+  },
+  {
+    "path": "/posts/<int:post_id>/comments/<int:comment_id>",
+    "handler": "detail_post_comment",
+    "source": "posts/urls.py:63"
+  },
+  {
+    "path": "/artist",
+    "handler": "artist_pagination_view",
+    "source": "artists/urls.py:12"
+  },
+  {
+    "path": "/artist/all",
+    "handler": "artist_all_view",
+    "source": "artists/urls.py:13"
+  },
+  {
+    "path": "/artist/search",
+    "handler": "search_artist_view",
+    "source": "artists/urls.py:14"
+  },
+  {
+    "path": "/artist/<str:artist_uri>/upd",
+    "handler": "artist_detail_view",
+    "source": "artists/urls.py:15"
+  },
+  {
+    "path": "/artist/<str:artist_uri>",
+    "handler": "artist_detail_view",
+    "source": "artists/urls.py:16"
+  },
+  {
+    "path": "/artist/<str:artist_uri>/albums/upd",
+    "handler": "artist_albums_view",
+    "source": "artists/urls.py:17"
+  },
+  {
+    "path": "/artist/<str:artist_uri>/albums",
+    "handler": "artist_albums_view",
+    "source": "artists/urls.py:18"
+  },
+  {
+    "path": "/album",
+    "handler": "album_pagination_view",
+    "source": "albums/urls.py:14"
+  },
+  {
+    "path": "/album/all",
+    "handler": "album_all_view",
+    "source": "albums/urls.py:15"
+  },
+  {
+    "path": "/album/search",
+    "handler": "search_album_view",
+    "source": "albums/urls.py:16"
+  },
+  {
+    "path": "/album/feed",
+    "handler": "feed_view",
+    "source": "albums/urls.py:17"
+  },
+  {
+    "path": "/album/<str:album_uri>/fike",
+    "handler": "album_like_view",
+    "source": "albums/urls.py:18"
+  },
+  {
+    "path": "/album/<str:album_uri>/upd",
+    "handler": "album_detail_view",
+    "source": "albums/urls.py:19"
+  },
+  {
+    "path": "/album/<int:pk>/view",
+    "handler": "views_up_view",
+    "source": "albums/urls.py:20"
+  },
+  {
+    "path": "/tracks/create_presigned_url",
+    "handler": "s3_views_qalybay.create_presigned_url  )",
+    "source": "tracks/urls.py:16"
+  },
+  {
+    "path": "/tracks/get_presigned_url",
+    "handler": "s3_views_qalybay.get_presigned_url  )",
+    "source": "tracks/urls.py:17"
+  },
+  {
+    "path": "/tracks/complete_upload",
+    "handler": "s3_views_qalybay.complete_upload  )",
+    "source": "tracks/urls.py:18"
+  },
+  {
+    "path": "/tracks/gcs/create_presigned_url",
+    "handler": "gcs_track_views.gcs_initiate_track_upload",
+    "source": "tracks/urls.py:21"
+  },
+  {
+    "path": "/tracks/gcs/get_presigned_url",
+    "handler": "gcs_track_views.gcs_get_track_part_url",
+    "source": "tracks/urls.py:22"
+  },
+  {
+    "path": "/tracks/gcs/complete_upload",
+    "handler": "gcs_track_views.gcs_complete_track_upload",
+    "source": "tracks/urls.py:23"
+  },
+  {
+    "path": "/tracks/gcs/native/initiate",
+    "handler": "gcs_native_track_views.gcs_native_initiate_track_upload",
+    "source": "tracks/urls.py:26"
+  },
+  {
+    "path": "/tracks/gcs/native/complete",
+    "handler": "gcs_native_track_views.gcs_native_complete_track_upload",
+    "source": "tracks/urls.py:27"
+  },
+  {
+    "path": "/tracks/r2/create_presigned_url",
+    "handler": "r2_track_views.r2_initiate_track_upload",
+    "source": "tracks/urls.py:30"
+  },
+  {
+    "path": "/tracks/r2/get_presigned_url",
+    "handler": "r2_track_views.r2_get_track_part_url",
+    "source": "tracks/urls.py:31"
+  },
+  {
+    "path": "/tracks/r2/complete_upload",
+    "handler": "r2_track_views.r2_complete_track_upload",
+    "source": "tracks/urls.py:32"
+  },
+  {
+    "path": "/tracks",
+    "handler": "track_pagination_view",
+    "source": "tracks/urls.py:34"
+  },
+  {
+    "path": "/tracks/all",
+    "handler": "track_all_view",
+    "source": "tracks/urls.py:35"
+  },
+  {
+    "path": "/tracks/search",
+    "handler": "search_track_view",
+    "source": "tracks/urls.py:36"
+  },
+  {
+    "path": "/tracks/<int:pk>/upd",
+    "handler": "track_update_view",
+    "source": "tracks/urls.py:39"
+  },
+  {
+    "path": "/tracks/<str:track_uri>/upd",
+    "handler": "track_update_view",
+    "source": "tracks/urls.py:40"
+  },
+  {
+    "path": "/tracks/<int:pk>/del",
+    "handler": "track_delete_view",
+    "source": "tracks/urls.py:42"
+  },
+  {
+    "path": "/tracks/<str:track_uri>/del",
+    "handler": "track_delete_view",
+    "source": "tracks/urls.py:43"
+  },
+  {
+    "path": "/tracks/<int:pk>",
+    "handler": "track_detail_view",
+    "source": "tracks/urls.py:45"
+  },
+  {
+    "path": "/tracks/<str:track_uri>",
+    "handler": "track_detail_view",
+    "source": "tracks/urls.py:46"
+  },
+  {
+    "path": "/photos/create_presigned_url",
+    "handler": "s3_views_qalybay.create_presigned_url)",
+    "source": "photos/urls.py:8"
+  },
+  {
+    "path": "/photos/get_presigned_url",
+    "handler": "s3_views_qalybay.get_presigned_url)",
+    "source": "photos/urls.py:9"
+  },
+  {
+    "path": "/photos/complete_upload",
+    "handler": "s3_views_qalybay.complete_upload)",
+    "source": "photos/urls.py:10"
+  },
+  {
+    "path": "/photos/gcs/create_presigned_url",
+    "handler": "gcs_photo_views.gcs_initiate_photo_upload",
+    "source": "photos/urls.py:13"
+  },
+  {
+    "path": "/photos/gcs/get_presigned_url",
+    "handler": "gcs_photo_views.gcs_get_photo_part_url",
+    "source": "photos/urls.py:14"
+  },
+  {
+    "path": "/photos/gcs/complete_upload",
+    "handler": "gcs_photo_views.gcs_complete_photo_upload",
+    "source": "photos/urls.py:15"
+  },
+  {
+    "path": "/photos/r2/create_presigned_url",
+    "handler": "r2_photo_views.r2_initiate_photo_upload",
+    "source": "photos/urls.py:18"
+  },
+  {
+    "path": "/photos/r2/get_presigned_url",
+    "handler": "r2_photo_views.r2_get_photo_part_url",
+    "source": "photos/urls.py:19"
+  },
+  {
+    "path": "/photos/r2/complete_upload",
+    "handler": "r2_photo_views.r2_complete_photo_upload",
+    "source": "photos/urls.py:20"
+  },
+  {
+    "path": "/photos/album/create",
+    "handler": "photo_album_create_api",
+    "source": "photos/urls.py:23"
+  },
+  {
+    "path": "/photos/album/<str:friendly_token>",
+    "handler": "photo_album_detail_api",
+    "source": "photos/urls.py:26"
+  },
+  {
+    "path": "/photos/album/<int:photo_album_id>/add",
+    "handler": "photo_album_add_photo_api",
+    "source": "photos/urls.py:29"
+  },
+  {
+    "path": "/photos/album/<int:photo_album_id>/upload",
+    "handler": "photo_album_upload_api",
+    "source": "photos/urls.py:32"
+  },
+  {
+    "path": "/playlist",
+    "handler": "PlaylistListView.as_view()",
+    "source": "playlists/urls.py:9"
+  },
+  {
+    "path": "/playlist/<str:playlist_uri>",
+    "handler": "playlist_detail",
+    "source": "playlists/urls.py:10"
+  },
+  {
+    "path": "/playlist/<str:playlist_uri>/tracks",
+    "handler": "playlist_offset",
+    "source": "playlists/urls.py:11"
+  },
+  {
+    "path": "/views/up",
+    "handler": "ViewsUP.as_view())",
+    "source": "views/urls.py:11"
+  },
+  {
+    "path": "/views/memes",
+    "handler": "memes_view)",
+    "source": "views/urls.py:12"
+  },
+  {
+    "path": "/memes",
+    "handler": "memes_list_view)",
+    "source": "memes/urls.py:6"
+  },
+  {
+    "path": "/memes/list",
+    "handler": "memes_list_db_view)",
+    "source": "memes/urls.py:7"
+  },
+  {
+    "path": "/movies/import_watchlist_csv",
+    "handler": "import_watchlist_csv",
+    "source": "movies/urls.py:24"
+  },
+  {
+    "path": "/movies/import_ratings_csv",
+    "handler": "import_ratings_csv",
+    "source": "movies/urls.py:25"
+  },
+  {
+    "path": "/movies/watchlist",
+    "handler": "get_watchlist)",
+    "source": "movies/urls.py:27"
+  },
+  {
+    "path": "/movies/watchlist/ammy_shuffle",
+    "handler": "ammy_shuffle_watchlist)",
+    "source": "movies/urls.py:28"
+  },
+  {
+    "path": "/movies/<str:username>/watchlist",
+    "handler": "user_watchlist_by_username)",
+    "source": "movies/urls.py:30"
+  },
+  {
+    "path": "/movies/<str:username>/ratings",
+    "handler": "user_ratings_by_username)",
+    "source": "movies/urls.py:31"
+  },
+  {
+    "path": "/movies/views/up",
+    "handler": "views_up_view",
+    "source": "movies/urls.py:33"
+  },
+  {
+    "path": "/movies/add",
+    "handler": "add_movie_view",
+    "source": "movies/urls.py:34"
+  },
+  {
+    "path": "/movies/feed",
+    "handler": "feed_movies_view",
+    "source": "movies/urls.py:35"
+  },
+  {
+    "path": "/movies/list",
+    "handler": "list_movies_view",
+    "source": "movies/urls.py:36"
+  },
+  {
+    "path": "/movies/imdbmovies/list",
+    "handler": "list_imdbmovies_view",
+    "source": "movies/urls.py:37"
+  },
+  {
+    "path": "/movies/imdbmovies/<str:imdb_id>",
+    "handler": "imdb_movie_detail_view",
+    "source": "movies/urls.py:38"
+  },
+  {
+    "path": "/movies/impressions/batch",
+    "handler": "record_movie_impressions",
+    "source": "movies/urls.py:40"
+  },
+  {
+    "path": "/movies/<int:tmdb_id>/like",
+    "handler": "movie_like_view",
+    "source": "movies/urls.py:41"
+  },
+  {
+    "path": "/movies/<int:movie_id>",
+    "handler": "movie_detail_view",
+    "source": "movies/urls.py:42"
+  },
+  {
+    "path": "/queries/bing/search",
+    "handler": "bing_query_view",
+    "source": "queries/urls.py:18"
+  },
+  {
+    "path": "/queries/brave/search",
+    "handler": "brave_query_view",
+    "source": "queries/urls.py:20"
+  },
+  {
+    "path": "/queries/brave/images/search",
+    "handler": "brave_images_search_view",
+    "source": "queries/urls.py:21"
+  },
+  {
+    "path": "/queries/google/firefox/search",
+    "handler": "google_firefox_query_view",
+    "source": "queries/urls.py:23"
+  },
+  {
+    "path": "/queries/google/search-old",
+    "handler": "google_query_view",
+    "source": "queries/urls.py:24"
+  },
+  {
+    "path": "/queries/google/all",
+    "handler": "GoogleQueryListView.as_view()",
+    "source": "queries/urls.py:26"
+  },
+  {
+    "path": "/queries/google/all/search",
+    "handler": "GoogleQueryAllSearchView.as_view()",
+    "source": "queries/urls.py:27"
+  },
+  {
+    "path": "/queries/google/search",
+    "handler": "GoogleQuerySearchView.as_view()",
+    "source": "queries/urls.py:28"
+  },
+  {
+    "path": "/websites/bing/search",
+    "handler": "BingWebsiteSearchView.as_view()",
+    "source": "websites/urls.py:29"
+  },
+  {
+    "path": "/websites/bing/images/search",
+    "handler": "BingImageSearchView.as_view()",
+    "source": "websites/urls.py:30"
+  },
+  {
+    "path": "/websites/brave/search",
+    "handler": "ScrapeBraveWebsitesView.as_view()",
+    "source": "websites/urls.py:32"
+  },
+  {
+    "path": "/websites/brave/images/search",
+    "handler": "BraveImageSearchView.as_view()",
+    "source": "websites/urls.py:33"
+  },
+  {
+    "path": "/websites/google/custom/search",
+    "handler": "GoogleCustomSearchImageView.as_view()",
+    "source": "websites/urls.py:35"
+  },
+  {
+    "path": "/websites/all",
+    "handler": "AllWebsitesView.as_view()",
+    "source": "websites/urls.py:37"
+  },
+  {
+    "path": "/websites/search",
+    "handler": "SearchWebsitesView.as_view()",
+    "source": "websites/urls.py:38"
+  },
+  {
+    "path": "/websites/brave/scrape",
+    "handler": "ScrapeBraveWebsitesView.as_view()",
+    "source": "websites/urls.py:40"
+  },
+  {
+    "path": "/chats/ice_servers",
+    "handler": "get_ice_servers_api",
+    "source": "chats/urls.py:17"
+  },
+  {
+    "path": "/chats/voice/upload",
+    "handler": "voice_message_upload_api",
+    "source": "chats/urls.py:20"
+  },
+  {
+    "path": "/chats/voice/<int:voice_id>/transcribe",
+    "handler": "trigger_transcription",
+    "source": "chats/urls.py:21"
+  },
+  {
+    "path": "/chats/voice/transcribe-callback",
+    "handler": "transcription_callback",
+    "source": "chats/urls.py:22"
+  },
+  {
+    "path": "/chats/voice/<int:voice_id>/status",
+    "handler": "transcription_status",
+    "source": "chats/urls.py:23"
+  },
+  {
+    "path": "/chats/direct",
+    "handler": "direct_chat_list",
+    "source": "chats/urls.py:26"
+  },
+  {
+    "path": "/chats/direct/<int:user_id>",
+    "handler": "direct_chat_detail",
+    "source": "chats/urls.py:27"
+  },
+  {
+    "path": "/chats/group",
+    "handler": "group_chat_list",
+    "source": "chats/urls.py:30"
+  },
+  {
+    "path": "/chats/group/create",
+    "handler": "create_group_chat",
+    "source": "chats/urls.py:31"
+  },
+  {
+    "path": "/chats/group/<int:chat_id>",
+    "handler": "group_chat_detail",
+    "source": "chats/urls.py:32"
+  },
+  {
+    "path": "/chats/group/<int:chat_id>/add",
+    "handler": "group_add_member",
+    "source": "chats/urls.py:33"
+  },
+  {
+    "path": "/chats/group/<int:chat_id>/remove",
+    "handler": "group_remove_member",
+    "source": "chats/urls.py:34"
+  },
+  {
+    "path": "/chats/saved",
+    "handler": "saved_messages_chat",
+    "source": "chats/urls.py:37"
+  },
+  {
+    "path": "/chats/<int:chat_id>/send",
+    "handler": "send_message",
+    "source": "chats/urls.py:40"
+  },
+  {
+    "path": "/chats/<int:chat_id>/send",
+    "handler": "send_message)",
+    "source": "chats/urls.py:41"
+  },
+  {
+    "path": "/chats/<int:chat_id>/read",
+    "handler": "mark_as_read",
+    "source": "chats/urls.py:42"
+  },
+  {
+    "path": "/chats/<int:chat_id>/read",
+    "handler": "mark_as_read)",
+    "source": "chats/urls.py:43"
+  },
+  {
+    "path": "/chats/<int:chat_id>/delete",
+    "handler": "delete_chat",
+    "source": "chats/urls.py:44"
+  },
+  {
+    "path": "/chats/<int:chat_id>/delete",
+    "handler": "delete_chat)",
+    "source": "chats/urls.py:45"
+  },
+  {
+    "path": "/chats/me",
+    "handler": "my_chats",
+    "source": "chats/urls.py:48"
+  },
+  {
+    "path": "/chats/upload",
+    "handler": "upload_chat_attachment",
+    "source": "chats/urls.py:49"
+  },
+  {
+    "path": "/chats",
+    "handler": "chat_list",
+    "source": "chats/urls.py:50"
+  },
+  {
+    "path": "/chats/gemini",
+    "handler": "chat_with_gemini",
+    "source": "chats/urls.py:51"
+  },
+  {
+    "path": "/jobs/api/applications",
+    "handler": "ApplicationView.as_view()",
+    "source": "jobs/urls.py:5"
+  },
+  {
+    "path": "/jobs/api/vacancies",
+    "handler": "vacancies_api",
+    "source": "jobs/urls.py:6"
+  },
+  {
+    "path": "/comments",
+    "handler": "comment_list_view",
+    "source": "comments/urls.py:10"
+  },
+  {
+    "path": "/comments/create",
+    "handler": "comment_create_view",
+    "source": "comments/urls.py:11"
+  },
+  {
+    "path": "/comments/<uuid:uid>",
+    "handler": "comment_detail_view",
+    "source": "comments/urls.py:12"
+  },
+  {
+    "path": "/comments/<uuid:uid>/delete",
+    "handler": "comment_delete_view",
+    "source": "comments/urls.py:13"
+  },
+  {
+    "path": "/links/save",
+    "handler": "save_link",
+    "source": "links/urls.py:14"
+  },
+  {
+    "path": "/links/search",
+    "handler": "search_by_tag",
+    "source": "links/urls.py:15"
+  },
+  {
+    "path": "/links/search/query",
+    "handler": "search_by_query",
+    "source": "links/urls.py:16"
+  },
+  {
+    "path": "/links/all",
+    "handler": "all_links_api",
+    "source": "links/urls.py:17"
+  },
+  {
+    "path": "/links/upload-csv",
+    "handler": "upload_csv_api",
+    "source": "links/urls.py:18"
+  },
+  {
+    "path": "/links/upload-csv-bulk",
+    "handler": "upload_csv_bulk",
+    "source": "links/urls.py:19"
+  },
+  {
+    "path": "/notes/pages",
+    "handler": "list_pages",
+    "source": "notes/urls.py:19"
+  },
+  {
+    "path": "/notes/pages/create",
+    "handler": "create_page",
+    "source": "notes/urls.py:20"
+  },
+  {
+    "path": "/notes/pages/<int:page_id>",
+    "handler": "get_page",
+    "source": "notes/urls.py:21"
+  },
+  {
+    "path": "/notes/pages/<int:page_id>/update",
+    "handler": "update_page",
+    "source": "notes/urls.py:22"
+  },
+  {
+    "path": "/notes/pages/<int:page_id>/delete",
+    "handler": "delete_page",
+    "source": "notes/urls.py:23"
+  },
+  {
+    "path": "/notes/pages/<int:page_id>/blocks/create",
+    "handler": "create_block",
+    "source": "notes/urls.py:24"
+  },
+  {
+    "path": "/notes/blocks/<int:block_id>/update",
+    "handler": "update_block",
+    "source": "notes/urls.py:25"
+  },
+  {
+    "path": "/notes/blocks/<int:block_id>/delete",
+    "handler": "delete_block",
+    "source": "notes/urls.py:26"
+  },
+  {
+    "path": "/notes/blocks/<int:block_id>/table",
+    "handler": "update_block_table",
+    "source": "notes/urls.py:27"
+  },
+  {
+    "path": "/notes/pages/<int:page_id>/tags",
+    "handler": "list_tags",
+    "source": "notes/urls.py:28"
+  },
+  {
+    "path": "/notes/pages/<int:page_id>/tags/add",
+    "handler": "add_tag",
+    "source": "notes/urls.py:29"
+  },
+  {
+    "path": "/notes/tags/<int:tag_id>/delete",
+    "handler": "delete_tag",
+    "source": "notes/urls.py:30"
+  },
+  {
+    "path": "/notes/search-by-tags",
+    "handler": "search_by_tags",
+    "source": "notes/urls.py:31"
+  },
+  {
+    "path": "/todos/all",
+    "handler": "get_todos",
+    "source": "todos/urls.py:19"
+  },
+  {
+    "path": "/todos/<int:todo_id>",
+    "handler": "get_todo",
+    "source": "todos/urls.py:20"
+  },
+  {
+    "path": "/todos/create",
+    "handler": "create_todo",
+    "source": "todos/urls.py:21"
+  },
+  {
+    "path": "/todos/<int:todo_id>/update",
+    "handler": "update_todo",
+    "source": "todos/urls.py:22"
+  },
+  {
+    "path": "/todos/<int:todo_id>/delete",
+    "handler": "delete_todo",
+    "source": "todos/urls.py:23"
+  },
+  {
+    "path": "/todos/reorder",
+    "handler": "reorder_todos",
+    "source": "todos/urls.py:24"
+  },
+  {
+    "path": "/todos/background-image",
+    "handler": "upload_background_image",
+    "source": "todos/urls.py:25"
+  },
+  {
+    "path": "/todos/lists",
+    "handler": "get_lists",
+    "source": "todos/urls.py:26"
+  },
+  {
+    "path": "/todos/lists/create",
+    "handler": "create_list",
+    "source": "todos/urls.py:27"
+  },
+  {
+    "path": "/todos/lists/<int:list_id>/update",
+    "handler": "update_list",
+    "source": "todos/urls.py:28"
+  },
+  {
+    "path": "/todos/lists/<int:list_id>/delete",
+    "handler": "delete_list",
+    "source": "todos/urls.py:29"
+  },
+  {
+    "path": "/todos/lists/reorder",
+    "handler": "reorder_lists",
+    "source": "todos/urls.py:30"
+  },
+  {
+    "path": "/communities/create",
+    "handler": "views.create_community",
+    "source": "communities/urls.py:6"
+  },
+  {
+    "path": "/communities",
+    "handler": "views.list_communities",
+    "source": "communities/urls.py:7"
+  },
+  {
+    "path": "/communities/<int:community_id>/posts/request",
+    "handler": "post_views.request_community_post",
+    "source": "communities/urls.py:10"
+  },
+  {
+    "path": "/communities/<int:community_id>/posts",
+    "handler": "post_views.list_approved_community_posts",
+    "source": "communities/urls.py:11"
+  },
+  {
+    "path": "/communities/<int:community_id>/posts/pending",
+    "handler": "post_views.list_pending_community_posts",
+    "source": "communities/urls.py:12"
+  },
+  {
+    "path": "/communities/<int:community_id>/posts/<int:cp_id>/approve",
+    "handler": "post_views.approve_community_post",
+    "source": "communities/urls.py:13"
+  },
+  {
+    "path": "/communities/<int:community_id>/posts/<int:cp_id>/reject",
+    "handler": "post_views.reject_community_post",
+    "source": "communities/urls.py:14"
+  },
+  {
+    "path": "/communities/<int:community_id>/posts/<int:cp_id>",
+    "handler": "post_views.delete_community_post",
+    "source": "communities/urls.py:15"
+  },
+  {
+    "path": "/communities/<int:community_id>/join",
+    "handler": "views.join_community",
+    "source": "communities/urls.py:18"
+  },
+  {
+    "path": "/communities/<int:community_id>/leave",
+    "handler": "views.leave_community",
+    "source": "communities/urls.py:19"
+  },
+  {
+    "path": "/communities/<int:community_id>/delete",
+    "handler": "views.delete_community",
+    "source": "communities/urls.py:20"
+  },
+  {
+    "path": "/communities/<int:community_id>/update",
+    "handler": "views.update_community",
+    "source": "communities/urls.py:21"
+  },
+  {
+    "path": "/communities/<int:community_id>/icon/r2",
+    "handler": "r2_upload_community_icon",
+    "source": "communities/urls.py:24"
+  },
+  {
+    "path": "/communities/<int:community_id>/banner/r2",
+    "handler": "r2_upload_community_banner",
+    "source": "communities/urls.py:25"
+  },
+  {
+    "path": "/communities/<int:community_id>",
+    "handler": "views.detail_community",
+    "source": "communities/urls.py:28"
+  },
+  {
+    "path": "/communities/@<str:community_name>",
+    "handler": "views.detail_community_by_name",
+    "source": "communities/urls.py:29"
+  },
+  {
+    "path": "/auth/google/token",
+    "handler": "google_login_api",
+    "source": "auth_cookie/urls.py:22"
+  },
+  {
+    "path": "/auth/google/token",
+    "handler": "google_login_api)",
+    "source": "auth_cookie/urls.py:23"
+  },
+  {
+    "path": "/auth/vk/token",
+    "handler": "vk_login_api",
+    "source": "auth_cookie/urls.py:26"
+  },
+  {
+    "path": "/auth/vk/token",
+    "handler": "vk_login_api)",
+    "source": "auth_cookie/urls.py:27"
+  },
+  {
+    "path": "/maintenance/delete-tables",
+    "handler": "DeleteAllTablesView.as_view()",
+    "source": "litloop_project/urls.py:27"
+  },
+  {
+    "path": "/maintenance/regenerate",
+    "handler": "RegenerateAllView.as_view()",
+    "source": "litloop_project/urls.py:28"
+  },
+  {
+    "path": "/maintenance/delete-user-tables",
+    "handler": "DeleteUserTablesView.as_view()",
+    "source": "litloop_project/urls.py:30"
+  },
+  {
+    "path": "/maintenance/regenerate-user-tables",
+    "handler": "RegenerateUserTablesView.as_view()",
+    "source": "litloop_project/urls.py:31"
+  },
+  {
+    "path": "/maintenance/delete-chat-tables",
+    "handler": "DeleteChatTablesView.as_view()",
+    "source": "litloop_project/urls.py:33"
+  },
+  {
+    "path": "/maintenance/regenerate-chat-tables",
+    "handler": "RegenerateChatTablesView.as_view()",
+    "source": "litloop_project/urls.py:34"
+  },
+  {
+    "path": "/admin",
+    "handler": "admin.site.urls)",
+    "source": "litloop_project/urls.py:37"
+  },
+  {
+    "path": "/<str:username>/posts",
+    "handler": "user_posts_view",
+    "source": "litloop_project/urls.py:69"
+  },
+  {
+    "path": "/ws/chat/<int:chat_id>",
+    "handler": "ChatConsumer.as_asgi())",
+    "source": "litloop_project/urls.py:78"
+  },
+  {
+    "path": "/ws/notifications",
+    "handler": "NotificationConsumer.as_asgi())",
+    "source": "litloop_project/urls.py:79"
+  }
+]

@@ -1,0 +1,36 @@
+name: Go backend
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: litloop_test
+          POSTGRES_USER: litloop
+          POSTGRES_PASSWORD: litloop
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U litloop -d litloop_test"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: go test ./...
+      - run: go test -race ./app ./internal/worker ./internal/storage -count=1
+        env:
+          TEST_DATABASE_URL: postgres://litloop:litloop@localhost:5432/litloop_test?sslmode=disable
+          TEST_REDIS_URL: redis://localhost:6379/0
+      - run: go vet ./...
+      - run: go build ./...

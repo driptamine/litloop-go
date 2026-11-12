@@ -1,0 +1,2939 @@
+[
+  {
+    "app": "users",
+    "name": "User",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "username",
+        "kind": "CharField",
+        "args": "max_length=255, unique=True, db_index=True, blank=True, null=True"
+      },
+      {
+        "name": "email",
+        "kind": "EmailField",
+        "args": "max_length=255, unique=True, db_index=True"
+      },
+      {
+        "name": "avatar",
+        "kind": "CharField",
+        "args": "max_length=500, blank=True, null=True"
+      },
+      {
+        "name": "is_verified",
+        "kind": "BooleanField",
+        "args": "default=False"
+      },
+      {
+        "name": "is_active",
+        "kind": "BooleanField",
+        "args": "default=True"
+      },
+      {
+        "name": "is_staff",
+        "kind": "BooleanField",
+        "args": "default=False"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      },
+      {
+        "name": "updated_at",
+        "kind": "DateTimeField",
+        "args": "auto_now=True"
+      }
+    ]
+  },
+  {
+    "app": "artists",
+    "name": "Artist",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "name",
+        "kind": "CharField",
+        "args": "max_length=300"
+      },
+      {
+        "name": "artist_uri",
+        "kind": "CharField",
+        "args": "max_length=300"
+      }
+    ]
+  },
+  {
+    "app": "albums",
+    "name": "AlbumTrack",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "album",
+        "kind": "ForeignKey",
+        "args": "'albums.Album', on_delete=models.CASCADE"
+      },
+      {
+        "name": "artist",
+        "kind": "ForeignKey",
+        "args": "'artists.Artist', on_delete=models.CASCADE"
+      }
+    ]
+  },
+  {
+    "app": "albums",
+    "name": "AlbumArtist",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "album",
+        "kind": "ForeignKey",
+        "args": "'albums.Album', on_delete=models.CASCADE"
+      },
+      {
+        "name": "artist",
+        "kind": "ForeignKey",
+        "args": "'artists.Artist', on_delete=models.CASCADE"
+      },
+      {
+        "name": "role",
+        "kind": "CharField",
+        "args": "max_length=200"
+      }
+    ]
+  },
+  {
+    "app": "albums",
+    "name": "Album",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "name",
+        "kind": "CharField",
+        "args": "max_length=400"
+      },
+      {
+        "name": "album_uri",
+        "kind": "CharField",
+        "args": "max_length=400"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      },
+      {
+        "name": "updated_at",
+        "kind": "DateTimeField",
+        "args": "auto_now=True"
+      }
+    ]
+  },
+  {
+    "app": "albums",
+    "name": "AlbumLike",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "album",
+        "kind": "ForeignKey",
+        "args": "'albums.Album', on_delete=models.CASCADE"
+      },
+      {
+        "name": "liked_by",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE"
+      }
+    ]
+  },
+  {
+    "app": "albums",
+    "name": "AlbumDislike",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "album",
+        "kind": "ForeignKey",
+        "args": "'albums.Album', on_delete=models.CASCADE"
+      },
+      {
+        "name": "dislike_by",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE"
+      }
+    ]
+  },
+  {
+    "app": "albums",
+    "name": "AlbumImpression",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "album",
+        "kind": "ForeignKey",
+        "args": "'albums.Album', on_delete=models.CASCADE"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE"
+      }
+    ]
+  },
+  {
+    "app": "albums",
+    "name": "AlbumView",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "album",
+        "kind": "ForeignKey",
+        "args": "'albums.Album', on_delete=models.CASCADE"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE"
+      }
+    ]
+  },
+  {
+    "app": "tracks",
+    "name": "SpotifyTrack",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "s3_key",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "gcs_key",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "r2_key",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "filename",
+        "kind": "CharField",
+        "args": "max_length=400"
+      }
+    ]
+  },
+  {
+    "app": "tracks",
+    "name": "Track",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "status",
+        "kind": "CharField",
+        "args": "max_length=20, choices=STATUS_CHOICES, default='draft'"
+      },
+      {
+        "name": "s3_key",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "gcs_key",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "r2_key",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "filename",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "track_uri",
+        "kind": "CharField",
+        "args": "max_length=400"
+      },
+      {
+        "name": "name",
+        "kind": "CharField",
+        "args": "max_length=400"
+      },
+      {
+        "name": "track_number",
+        "kind": "CharField",
+        "args": "max_length=400, default=\"\""
+      },
+      {
+        "name": "album",
+        "kind": "ForeignKey",
+        "args": "'albums.Album', related_name='tracks', on_delete=models.CASCADE, null=True, blank=True"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      },
+      {
+        "name": "updated_at",
+        "kind": "DateTimeField",
+        "args": "auto_now=True"
+      },
+      {
+        "name": "release_date",
+        "kind": "DateTimeField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "'users.User', related_name='tracks', on_delete=models.CASCADE, null=True, blank=True"
+      }
+    ]
+  },
+  {
+    "app": "tracks",
+    "name": "TrackLike",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "track",
+        "kind": "ForeignKey",
+        "args": "Track, on_delete=models.CASCADE"
+      },
+      {
+        "name": "liked_by",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE"
+      }
+    ]
+  },
+  {
+    "app": "tracks",
+    "name": "TrackDislike",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "track",
+        "kind": "ForeignKey",
+        "args": "Track, on_delete=models.CASCADE"
+      },
+      {
+        "name": "dislike_by",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE"
+      }
+    ]
+  },
+  {
+    "app": "tracks",
+    "name": "TrackImpression",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "track",
+        "kind": "ForeignKey",
+        "args": "Track, on_delete=models.CASCADE"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE"
+      }
+    ]
+  },
+  {
+    "app": "tracks",
+    "name": "TrackView",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "track",
+        "kind": "ForeignKey",
+        "args": "Track, on_delete=models.CASCADE"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE"
+      }
+    ]
+  },
+  {
+    "app": "tracks",
+    "name": "TrackPlay",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "track",
+        "kind": "ForeignKey",
+        "args": "Track, on_delete=models.CASCADE"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE"
+      }
+    ]
+  },
+  {
+    "app": "photos",
+    "name": "Photo",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "status",
+        "kind": "CharField",
+        "args": "max_length=20, choices=STATUS_CHOICES, default='draft'"
+      },
+      {
+        "name": "s3_key",
+        "kind": "CharField",
+        "args": "max_length=400, null=True"
+      },
+      {
+        "name": "gcs_key",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "r2_key",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "filename",
+        "kind": "CharField",
+        "args": "max_length=400, null=True"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "\"users.User\", on_delete=models.CASCADE, null=True, blank=True"
+      },
+      {
+        "name": "title",
+        "kind": "TextField",
+        "args": "blank=True, null=True"
+      },
+      {
+        "name": "user_featured",
+        "kind": "BooleanField",
+        "args": "default=False"
+      },
+      {
+        "name": "friendly_token",
+        "kind": "CharField",
+        "args": "blank=True, max_length=12, db_index=True"
+      },
+      {
+        "name": "likes",
+        "kind": "IntegerField",
+        "args": "default=0"
+      },
+      {
+        "name": "dislikes",
+        "kind": "IntegerField",
+        "args": "default=0"
+      },
+      {
+        "name": "views",
+        "kind": "IntegerField",
+        "args": "default=0"
+      },
+      {
+        "name": "impressions",
+        "kind": "IntegerField",
+        "args": "default=0"
+      }
+    ]
+  },
+  {
+    "app": "photos",
+    "name": "PhotoLike",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "photo",
+        "kind": "ForeignKey",
+        "args": "Photo, on_delete=models.CASCADE"
+      },
+      {
+        "name": "liked_by",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE"
+      }
+    ]
+  },
+  {
+    "app": "photos",
+    "name": "PhotoDislike",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "photo",
+        "kind": "ForeignKey",
+        "args": "Photo, on_delete=models.CASCADE"
+      },
+      {
+        "name": "dislike_by",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE"
+      }
+    ]
+  },
+  {
+    "app": "photos",
+    "name": "PhotoImpression",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "photo",
+        "kind": "ForeignKey",
+        "args": "Photo, on_delete=models.CASCADE"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE"
+      }
+    ]
+  },
+  {
+    "app": "photos",
+    "name": "PhotoView",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "photo",
+        "kind": "ForeignKey",
+        "args": "Photo, on_delete=models.CASCADE"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE"
+      }
+    ]
+  },
+  {
+    "app": "photos",
+    "name": "PhotoAlbum",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "add_date",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True, db_index=True"
+      },
+      {
+        "name": "description",
+        "kind": "TextField",
+        "args": "blank=True, help_text=\"description\""
+      },
+      {
+        "name": "friendly_token",
+        "kind": "CharField",
+        "args": "blank=True, max_length=12, db_index=True"
+      },
+      {
+        "name": "title",
+        "kind": "CharField",
+        "args": "max_length=100, db_index=True"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "\"users.User\", on_delete=models.CASCADE, db_index=True, related_name=\"photoalbums\""
+      }
+    ]
+  },
+  {
+    "app": "photos",
+    "name": "PhotoAlbumItem",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "action_date",
+        "kind": "DateTimeField",
+        "args": "auto_now=True"
+      },
+      {
+        "name": "photo",
+        "kind": "ForeignKey",
+        "args": "Photo, on_delete=models.CASCADE"
+      },
+      {
+        "name": "photo_album",
+        "kind": "ForeignKey",
+        "args": "PhotoAlbum, on_delete=models.CASCADE"
+      },
+      {
+        "name": "ordering",
+        "kind": "IntegerField",
+        "args": "default=1"
+      }
+    ]
+  },
+  {
+    "app": "videos",
+    "name": "Video",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "status",
+        "kind": "CharField",
+        "args": "max_length=20, choices=STATUS_CHOICES, default='draft'"
+      },
+      {
+        "name": "visibility",
+        "kind": "CharField",
+        "args": "max_length=20, choices=VISIBILITY_CHOICES, default='private'"
+      },
+      {
+        "name": "s3_key",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "gcs_key",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "r2_key",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "filename",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "hls_s3",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "title",
+        "kind": "CharField",
+        "args": "max_length=100, null=True, blank=True"
+      },
+      {
+        "name": "description",
+        "kind": "CharField",
+        "args": "max_length=100, null=True, blank=True"
+      },
+      {
+        "name": "video_file",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "sprites",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "thumbnail",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "likes",
+        "kind": "IntegerField",
+        "args": "default=0"
+      },
+      {
+        "name": "dislikes",
+        "kind": "IntegerField",
+        "args": "default=0"
+      },
+      {
+        "name": "views",
+        "kind": "IntegerField",
+        "args": "default=0"
+      },
+      {
+        "name": "impressions",
+        "kind": "IntegerField",
+        "args": "default=0"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE, null=True, blank=True"
+      }
+    ]
+  },
+  {
+    "app": "videos",
+    "name": "VideoWatchProgress",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "User, on_delete=models.CASCADE"
+      },
+      {
+        "name": "video",
+        "kind": "ForeignKey",
+        "args": "Video, on_delete=models.CASCADE"
+      },
+      {
+        "name": "playback_time",
+        "kind": "FloatField",
+        "args": "default=0.0"
+      },
+      {
+        "name": "updated_at",
+        "kind": "DateTimeField",
+        "args": "auto_now=True"
+      }
+    ]
+  },
+  {
+    "app": "videos",
+    "name": "VideoComment",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "comment",
+        "kind": "ForeignKey",
+        "args": "'comments.Comment', on_delete=models.CASCADE, related_name='video_links'"
+      },
+      {
+        "name": "video",
+        "kind": "ForeignKey",
+        "args": "Video, on_delete=models.CASCADE, related_name='comment_links'"
+      }
+    ]
+  },
+  {
+    "app": "videos",
+    "name": "VideoPlaylist",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "title",
+        "kind": "CharField",
+        "args": "max_length=900, null=True, blank=True"
+      }
+    ]
+  },
+  {
+    "app": "videos",
+    "name": "VideoPlaylistItem",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "video",
+        "kind": "ForeignKey",
+        "args": "Video, on_delete=models.CASCADE"
+      },
+      {
+        "name": "playlist",
+        "kind": "ForeignKey",
+        "args": "VideoPlaylist, on_delete=models.CASCADE"
+      },
+      {
+        "name": "ordering",
+        "kind": "IntegerField",
+        "args": "default=1"
+      }
+    ]
+  },
+  {
+    "app": "playlists",
+    "name": "Playlist",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "title",
+        "kind": "CharField",
+        "args": "max_length=400, blank=True, null=True"
+      },
+      {
+        "name": "description",
+        "kind": "TextField",
+        "args": "blank=True, null=True"
+      },
+      {
+        "name": "friendly_token",
+        "kind": "CharField",
+        "args": "max_length=100, blank=True, null=True"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "User, related_name='playlists', on_delete=models.CASCADE, null=True, blank=True"
+      }
+    ]
+  },
+  {
+    "app": "comments",
+    "name": "Comment",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "add_date",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      },
+      {
+        "name": "friendly_token",
+        "kind": "CharField",
+        "args": "blank=True, max_length=27, db_index=True"
+      },
+      {
+        "name": "text",
+        "kind": "TextField",
+        "args": "help_text=\"text\""
+      },
+      {
+        "name": "uid",
+        "kind": "UUIDField",
+        "args": "unique=True, default=uuid.uuid4"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "\"users.User\", on_delete=models.CASCADE, db_index=True"
+      },
+      {
+        "name": "parent",
+        "kind": "TreeForeignKey",
+        "args": "\"self\", on_delete=models.CASCADE, null=True, blank=True, related_name=\"children\""
+      }
+    ]
+  },
+  {
+    "app": "comments",
+    "name": "CommentPhoto",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      }
+    ]
+  },
+  {
+    "app": "comments",
+    "name": "CommentVideo",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      }
+    ]
+  },
+  {
+    "app": "comments",
+    "name": "CommentAudio",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      }
+    ]
+  },
+  {
+    "app": "comments",
+    "name": "CommentTrack",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      }
+    ]
+  },
+  {
+    "app": "posts",
+    "name": "Post",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "title",
+        "kind": "CharField",
+        "args": "max_length=100, blank=True, null=True"
+      },
+      {
+        "name": "description",
+        "kind": "CharField",
+        "args": "max_length=100, blank=True"
+      },
+      {
+        "name": "friendly_id",
+        "kind": "CharField",
+        "args": "max_length=100, blank=True"
+      },
+      {
+        "name": "author",
+        "kind": "ForeignKey",
+        "args": " User, related_name='posts', # on_delete=models.CASCADE on_delete=models.SET_NULL, null=True, blank=True "
+      },
+      {
+        "name": "likes_count",
+        "kind": "IntegerField",
+        "args": "default=0"
+      },
+      {
+        "name": "dislikes_count",
+        "kind": "IntegerField",
+        "args": "default=0"
+      },
+      {
+        "name": "views_count",
+        "kind": "IntegerField",
+        "args": "default=0"
+      },
+      {
+        "name": "impressions_count",
+        "kind": "IntegerField",
+        "args": "default=0"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      },
+      {
+        "name": "updated_at",
+        "kind": "DateTimeField",
+        "args": "auto_now=True"
+      }
+    ]
+  },
+  {
+    "app": "posts",
+    "name": "PostLike",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "post",
+        "kind": "ForeignKey",
+        "args": "Post, on_delete=models.CASCADE"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "User, on_delete=models.CASCADE"
+      },
+      {
+        "name": "liked_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      }
+    ]
+  },
+  {
+    "app": "posts",
+    "name": "PostDislike",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "post",
+        "kind": "ForeignKey",
+        "args": "Post, on_delete=models.CASCADE"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "User, on_delete=models.CASCADE"
+      },
+      {
+        "name": "disliked_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      }
+    ]
+  },
+  {
+    "app": "posts",
+    "name": "PostImpression",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "post",
+        "kind": "ForeignKey",
+        "args": "Post, on_delete=models.CASCADE"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "User, on_delete=models.CASCADE, null=True, blank=True"
+      }
+    ]
+  },
+  {
+    "app": "posts",
+    "name": "PostView",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "post",
+        "kind": "ForeignKey",
+        "args": "Post, on_delete=models.CASCADE"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "User, on_delete=models.CASCADE"
+      },
+      {
+        "name": "viewed_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      }
+    ]
+  },
+  {
+    "app": "posts",
+    "name": "PostPhoto",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "post",
+        "kind": "ForeignKey",
+        "args": "Post, on_delete=models.CASCADE"
+      },
+      {
+        "name": "photo",
+        "kind": "ForeignKey",
+        "args": "'photos.Photo', on_delete=models.CASCADE"
+      },
+      {
+        "name": "order",
+        "kind": "IntegerField",
+        "args": "default=1"
+      }
+    ]
+  },
+  {
+    "app": "posts",
+    "name": "PostVideo",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "post",
+        "kind": "ForeignKey",
+        "args": "Post, on_delete=models.CASCADE"
+      },
+      {
+        "name": "video",
+        "kind": "ForeignKey",
+        "args": "'videos.Video', on_delete=models.CASCADE"
+      },
+      {
+        "name": "order",
+        "kind": "IntegerField",
+        "args": "default=1"
+      }
+    ]
+  },
+  {
+    "app": "posts",
+    "name": "PostTrack",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "post",
+        "kind": "ForeignKey",
+        "args": "Post, on_delete=models.CASCADE"
+      },
+      {
+        "name": "track",
+        "kind": "ForeignKey",
+        "args": "'tracks.Track', on_delete=models.CASCADE"
+      },
+      {
+        "name": "order",
+        "kind": "IntegerField",
+        "args": "default=1"
+      }
+    ]
+  },
+  {
+    "app": "posts",
+    "name": "PostPlaylist",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "post",
+        "kind": "ForeignKey",
+        "args": "Post, on_delete=models.CASCADE"
+      },
+      {
+        "name": "playlist",
+        "kind": "ForeignKey",
+        "args": "'playlists.Playlist', on_delete=models.CASCADE"
+      },
+      {
+        "name": "order",
+        "kind": "IntegerField",
+        "args": "default=1"
+      }
+    ]
+  },
+  {
+    "app": "posts",
+    "name": "PostComment",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "comment",
+        "kind": "ForeignKey",
+        "args": "'comments.Comment', on_delete=models.CASCADE, related_name='post_links'"
+      },
+      {
+        "name": "post",
+        "kind": "ForeignKey",
+        "args": "Post, on_delete=models.CASCADE, related_name='comment_links'"
+      }
+    ]
+  },
+  {
+    "app": "chats",
+    "name": "Chat",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "chat_type",
+        "kind": "CharField",
+        "args": "max_length=20, choices=CHAT_TYPES, default='direct'"
+      },
+      {
+        "name": "name",
+        "kind": "SlugField",
+        "args": "max_length=20, blank=True, null=True"
+      },
+      {
+        "name": "image_url",
+        "kind": "CharField",
+        "args": "max_length=400, blank=True, null=True"
+      },
+      {
+        "name": "description",
+        "kind": "CharField",
+        "args": "max_length=400, blank=True, null=True"
+      },
+      {
+        "name": "is_saved_messages",
+        "kind": "BooleanField",
+        "args": "default=False"
+      }
+    ]
+  },
+  {
+    "app": "chats",
+    "name": "Message",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "chat",
+        "kind": "ForeignKey",
+        "args": "Chat, on_delete=models.SET_NULL, null=True, blank=True, related_name=\"messages\""
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "User, on_delete=models.SET_NULL, null=True, blank=True"
+      },
+      {
+        "name": "text",
+        "kind": "TextField",
+        "args": "blank=True"
+      },
+      {
+        "name": "attachments",
+        "kind": "JSONField",
+        "args": "default=list, blank=True"
+      },
+      {
+        "name": "is_read",
+        "kind": "BooleanField",
+        "args": "default=False"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      }
+    ]
+  },
+  {
+    "app": "chats",
+    "name": "MessageVideo",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "message",
+        "kind": "ForeignKey",
+        "args": "Message, on_delete=models.SET_NULL, null=True, blank=True"
+      },
+      {
+        "name": "video",
+        "kind": "ForeignKey",
+        "args": "Video, on_delete=models.SET_NULL, null=True, blank=True"
+      }
+    ]
+  },
+  {
+    "app": "chats",
+    "name": "MessagePhoto",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "message",
+        "kind": "ForeignKey",
+        "args": "Message, on_delete=models.SET_NULL, null=True, blank=True"
+      },
+      {
+        "name": "photo",
+        "kind": "ForeignKey",
+        "args": "Photo, on_delete=models.SET_NULL, null=True, blank=True"
+      }
+    ]
+  },
+  {
+    "app": "chats",
+    "name": "MessageTrack",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "message",
+        "kind": "ForeignKey",
+        "args": "Message, on_delete=models.SET_NULL, null=True, blank=True"
+      },
+      {
+        "name": "track",
+        "kind": "ForeignKey",
+        "args": "Track, on_delete=models.SET_NULL, null=True, blank=True"
+      }
+    ]
+  },
+  {
+    "app": "chats",
+    "name": "MessageVoice",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "message",
+        "kind": "ForeignKey",
+        "args": "Message, on_delete=models.SET_NULL, null=True, blank=True"
+      },
+      {
+        "name": "voice_message",
+        "kind": "ForeignKey",
+        "args": "'VoiceMessage', on_delete=models.SET_NULL, null=True, blank=True"
+      }
+    ]
+  },
+  {
+    "app": "chats",
+    "name": "VoiceMessage",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "s3_key",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "gcs_key",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "r2_key",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "filename",
+        "kind": "CharField",
+        "args": "max_length=400, null=True, blank=True"
+      },
+      {
+        "name": "duration",
+        "kind": "FloatField",
+        "args": "default=0.0"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "User, on_delete=models.CASCADE, null=True, blank=True"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      },
+      {
+        "name": "transcription",
+        "kind": "TextField",
+        "args": "blank=True, null=True"
+      },
+      {
+        "name": "transcription_language",
+        "kind": "CharField",
+        "args": "max_length=10, blank=True, null=True"
+      },
+      {
+        "name": "transcribed_at",
+        "kind": "DateTimeField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "transcription_status",
+        "kind": "CharField",
+        "args": " max_length=20, choices=[ ('not_requested', 'Not requested'), ('pending', 'Pending'), ('processing', 'Processing'), ('completed', 'Completed'), ('failed', 'Failed'), ], default='not_requested', "
+      }
+    ]
+  },
+  {
+    "app": "chats",
+    "name": "Call",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "chat",
+        "kind": "ForeignKey",
+        "args": "Chat, on_delete=models.CASCADE, related_name=\"calls\""
+      },
+      {
+        "name": "caller",
+        "kind": "ForeignKey",
+        "args": "User, on_delete=models.CASCADE, related_name=\"calls_initiated\""
+      },
+      {
+        "name": "receiver",
+        "kind": "ForeignKey",
+        "args": "User, on_delete=models.CASCADE, related_name=\"calls_received\", null=True, blank=True"
+      },
+      {
+        "name": "call_type",
+        "kind": "CharField",
+        "args": "max_length=10, choices=CALL_TYPES, default='voice'"
+      },
+      {
+        "name": "status",
+        "kind": "CharField",
+        "args": "max_length=20, choices=STATUS_CHOICES, default='initiated'"
+      },
+      {
+        "name": "started_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      },
+      {
+        "name": "ended_at",
+        "kind": "DateTimeField",
+        "args": "null=True, blank=True"
+      }
+    ]
+  },
+  {
+    "app": "communities",
+    "name": "Community",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "name",
+        "kind": "CharField",
+        "args": "max_length=100, unique=True"
+      },
+      {
+        "name": "handle",
+        "kind": "CharField",
+        "args": "max_length=100, unique=True, blank=True"
+      },
+      {
+        "name": "description",
+        "kind": "TextField",
+        "args": "blank=True"
+      },
+      {
+        "name": "icon",
+        "kind": "CharField",
+        "args": "max_length=500, blank=True, null=True"
+      },
+      {
+        "name": "banner",
+        "kind": "CharField",
+        "args": "max_length=500, blank=True, null=True"
+      },
+      {
+        "name": "created_by",
+        "kind": "ForeignKey",
+        "args": "settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='owned_communities'"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      }
+    ]
+  },
+  {
+    "app": "communities",
+    "name": "CommunityMembership",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "settings.AUTH_USER_MODEL, on_delete=models.CASCADE"
+      },
+      {
+        "name": "community",
+        "kind": "ForeignKey",
+        "args": "Community, on_delete=models.CASCADE"
+      },
+      {
+        "name": "role",
+        "kind": "CharField",
+        "args": "max_length=20, choices=ROLE_CHOICES, default='member'"
+      },
+      {
+        "name": "joined_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      }
+    ]
+  },
+  {
+    "app": "communities",
+    "name": "CommunityPost",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "post",
+        "kind": "OneToOneField",
+        "args": "'posts.Post', on_delete=models.CASCADE, related_name='community_post'"
+      },
+      {
+        "name": "community",
+        "kind": "ForeignKey",
+        "args": "Community, on_delete=models.CASCADE, related_name='posts'"
+      },
+      {
+        "name": "requested_by",
+        "kind": "ForeignKey",
+        "args": "settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='community_post_requests'"
+      },
+      {
+        "name": "status",
+        "kind": "CharField",
+        "args": "max_length=20, choices=STATUS_CHOICES, default='pending'"
+      },
+      {
+        "name": "reviewed_by",
+        "kind": "ForeignKey",
+        "args": "settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='community_post_reviews'"
+      },
+      {
+        "name": "reviewed_at",
+        "kind": "DateTimeField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      }
+    ]
+  },
+  {
+    "app": "todos",
+    "name": "Profile",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "user",
+        "kind": "OneToOneField",
+        "args": "User, on_delete=models.CASCADE"
+      },
+      {
+        "name": "background_image",
+        "kind": "TextField",
+        "args": "blank=True, null=True"
+      }
+    ]
+  },
+  {
+    "app": "todos",
+    "name": "TodoList",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "name",
+        "kind": "CharField",
+        "args": "max_length=255"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "User, related_name='todo_lists', on_delete=models.CASCADE"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      },
+      {
+        "name": "order",
+        "kind": "IntegerField",
+        "args": "default=0"
+      }
+    ]
+  },
+  {
+    "app": "todos",
+    "name": "Todo",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "title",
+        "kind": "CharField",
+        "args": "max_length=255"
+      },
+      {
+        "name": "completed",
+        "kind": "BooleanField",
+        "args": "default=False"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "User, related_name='todos', on_delete=models.SET_NULL, null=True, blank=True"
+      },
+      {
+        "name": "todo_list",
+        "kind": "ForeignKey",
+        "args": "TodoList, related_name='todos', on_delete=models.CASCADE, null=True, blank=True"
+      },
+      {
+        "name": "order",
+        "kind": "IntegerField",
+        "args": "default=0"
+      }
+    ]
+  },
+  {
+    "app": "notes",
+    "name": "Page",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "title",
+        "kind": "CharField",
+        "args": "max_length=200"
+      },
+      {
+        "name": "parent",
+        "kind": "TreeForeignKey",
+        "args": " 'self', null=True, blank=True, related_name='children', on_delete=models.CASCADE "
+      },
+      {
+        "name": "is_locked",
+        "kind": "BooleanField",
+        "args": "default=False"
+      },
+      {
+        "name": "is_private",
+        "kind": "BooleanField",
+        "args": "default=True"
+      },
+      {
+        "name": "author",
+        "kind": "ForeignKey",
+        "args": "settings.AUTH_USER_MODEL, related_name='pages', on_delete=models.CASCADE, null=True, blank=True"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      },
+      {
+        "name": "updated_at",
+        "kind": "DateTimeField",
+        "args": "auto_now=True"
+      }
+    ]
+  },
+  {
+    "app": "notes",
+    "name": "PageTag",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "page",
+        "kind": "ForeignKey",
+        "args": "Page, related_name='tags', on_delete=models.CASCADE"
+      },
+      {
+        "name": "name",
+        "kind": "CharField",
+        "args": "max_length=50"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      }
+    ]
+  },
+  {
+    "app": "notes",
+    "name": "Block",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "page",
+        "kind": "ForeignKey",
+        "args": "Page, related_name='blocks', on_delete=models.CASCADE"
+      },
+      {
+        "name": "type",
+        "kind": "CharField",
+        "args": "max_length=20, choices=BLOCK_TYPES, default='text'"
+      },
+      {
+        "name": "content",
+        "kind": "TextField",
+        "args": "default='', blank=True"
+      },
+      {
+        "name": "order",
+        "kind": "PositiveIntegerField",
+        "args": "default=0"
+      }
+    ]
+  },
+  {
+    "app": "notes",
+    "name": "BlockTable",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "block",
+        "kind": "OneToOneField",
+        "args": "Block, on_delete=models.CASCADE, related_name='table_data'"
+      },
+      {
+        "name": "columns",
+        "kind": "JSONField",
+        "args": "default=list"
+      },
+      {
+        "name": "rows",
+        "kind": "JSONField",
+        "args": "default=list"
+      }
+    ]
+  },
+  {
+    "app": "jobs",
+    "name": "Company",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "name",
+        "kind": "CharField",
+        "args": "max_length=255"
+      },
+      {
+        "name": "description",
+        "kind": "TextField",
+        "args": "blank=True"
+      },
+      {
+        "name": "website",
+        "kind": "URLField",
+        "args": "blank=True"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      }
+    ]
+  },
+  {
+    "app": "jobs",
+    "name": "Resume",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "User, on_delete=models.CASCADE, related_name='resumes'"
+      },
+      {
+        "name": "summary",
+        "kind": "TextField",
+        "args": ""
+      },
+      {
+        "name": "skills",
+        "kind": "TextField",
+        "args": ""
+      },
+      {
+        "name": "experience",
+        "kind": "TextField",
+        "args": ""
+      },
+      {
+        "name": "education",
+        "kind": "TextField",
+        "args": ""
+      }
+    ]
+  },
+  {
+    "app": "jobs",
+    "name": "JobPosting",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "title",
+        "kind": "CharField",
+        "args": "max_length=255"
+      },
+      {
+        "name": "description",
+        "kind": "TextField",
+        "args": ""
+      },
+      {
+        "name": "company",
+        "kind": "ForeignKey",
+        "args": "'Company', on_delete=models.CASCADE"
+      },
+      {
+        "name": "location",
+        "kind": "CharField",
+        "args": "max_length=255, blank=True"
+      },
+      {
+        "name": "posted_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      }
+    ]
+  },
+  {
+    "app": "jobs",
+    "name": "Application",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "job",
+        "kind": "ForeignKey",
+        "args": "JobPosting, on_delete=models.CASCADE, related_name='applications'"
+      },
+      {
+        "name": "applicant",
+        "kind": "ForeignKey",
+        "args": "User, on_delete=models.CASCADE"
+      },
+      {
+        "name": "resume",
+        "kind": "ForeignKey",
+        "args": "Resume, on_delete=models.SET_NULL, null=True, blank=True"
+      },
+      {
+        "name": "applied_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      }
+    ]
+  },
+  {
+    "app": "jobs",
+    "name": "CoverLetter",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "application",
+        "kind": "OneToOneField",
+        "args": "Application, on_delete=models.CASCADE, related_name='cover_letter'"
+      },
+      {
+        "name": "content",
+        "kind": "TextField",
+        "args": ""
+      }
+    ]
+  },
+  {
+    "app": "links",
+    "name": "Hashtag",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "name",
+        "kind": "CharField",
+        "args": "max_length=100, unique=True"
+      }
+    ]
+  },
+  {
+    "app": "links",
+    "name": "Link",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.SET_NULL, null=True, blank=True"
+      },
+      {
+        "name": "title",
+        "kind": "CharField",
+        "args": "max_length=255, null=True, blank=True"
+      },
+      {
+        "name": "url",
+        "kind": "URLField",
+        "args": ""
+      },
+      {
+        "name": "status",
+        "kind": "CharField",
+        "args": "max_length=20, default='unread'"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      },
+      {
+        "name": "updated_at",
+        "kind": "DateTimeField",
+        "args": "auto_now=True"
+      },
+      {
+        "name": "time_added",
+        "kind": "DateTimeField",
+        "args": "null=True, blank=True"
+      }
+    ]
+  },
+  {
+    "app": "links",
+    "name": "LinkTag",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "link",
+        "kind": "ForeignKey",
+        "args": "'links.Link', on_delete=models.CASCADE"
+      },
+      {
+        "name": "hashtag",
+        "kind": "ForeignKey",
+        "args": "'links.Hashtag', on_delete=models.CASCADE"
+      },
+      {
+        "name": "added_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      }
+    ]
+  },
+  {
+    "app": "movies",
+    "name": "Movie",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "tmdb_id",
+        "kind": "IntegerField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "imdb_id",
+        "kind": "IntegerField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "title",
+        "kind": "TextField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "description",
+        "kind": "TextField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "movie_file",
+        "kind": "TextField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "poster",
+        "kind": "TextField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "likes_count",
+        "kind": "IntegerField",
+        "args": "default=0"
+      },
+      {
+        "name": "dislikes_count",
+        "kind": "IntegerField",
+        "args": "default=0"
+      },
+      {
+        "name": "views_count",
+        "kind": "IntegerField",
+        "args": "default=0"
+      },
+      {
+        "name": "impressions_count",
+        "kind": "IntegerField",
+        "args": "default=0"
+      }
+    ]
+  },
+  {
+    "app": "movies",
+    "name": "ImdbMovie",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "imdb_id",
+        "kind": "CharField",
+        "args": "max_length=20, unique=True"
+      },
+      {
+        "name": "title",
+        "kind": "CharField",
+        "args": "max_length=255"
+      },
+      {
+        "name": "original_title",
+        "kind": "CharField",
+        "args": "max_length=255, blank=True"
+      },
+      {
+        "name": "url",
+        "kind": "URLField",
+        "args": "blank=True"
+      },
+      {
+        "name": "title_type",
+        "kind": "CharField",
+        "args": "max_length=50, blank=True"
+      },
+      {
+        "name": "imdb_rating",
+        "kind": "FloatField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "runtime_minutes",
+        "kind": "PositiveIntegerField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "year",
+        "kind": "PositiveIntegerField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "release_date",
+        "kind": "DateField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "genres",
+        "kind": "CharField",
+        "args": "max_length=255, blank=True"
+      },
+      {
+        "name": "num_votes",
+        "kind": "PositiveIntegerField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "directors",
+        "kind": "CharField",
+        "args": "max_length=255, blank=True"
+      },
+      {
+        "name": "description",
+        "kind": "TextField",
+        "args": "blank=True"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "modified_at",
+        "kind": "DateField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "position",
+        "kind": "PositiveIntegerField",
+        "args": "null=True, blank=True"
+      }
+    ]
+  },
+  {
+    "app": "movies",
+    "name": "WatchlistItem",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "User, on_delete=models.CASCADE, related_name='watchlist_items'"
+      },
+      {
+        "name": "movie",
+        "kind": "ForeignKey",
+        "args": "ImdbMovie, on_delete=models.CASCADE, related_name='watchlisted_by'"
+      },
+      {
+        "name": "user_rating",
+        "kind": "FloatField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "date_added",
+        "kind": "DateField",
+        "args": "auto_now_add=True"
+      },
+      {
+        "name": "date_rated",
+        "kind": "DateField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "watched",
+        "kind": "BooleanField",
+        "args": "default=False"
+      },
+      {
+        "name": "notes",
+        "kind": "TextField",
+        "args": "blank=True"
+      }
+    ]
+  },
+  {
+    "app": "movies",
+    "name": "MovieImpression",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "movie",
+        "kind": "ForeignKey",
+        "args": "Movie, on_delete=models.CASCADE"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE, null=True, blank=True"
+      }
+    ]
+  },
+  {
+    "app": "movies",
+    "name": "MovieView",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "movie",
+        "kind": "ForeignKey",
+        "args": "Movie, on_delete=models.CASCADE"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE"
+      }
+    ]
+  },
+  {
+    "app": "movies",
+    "name": "ImdbMovieRating",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "User, on_delete=models.CASCADE, related_name='imdb_ratings'"
+      },
+      {
+        "name": "imdb_movie",
+        "kind": "ForeignKey",
+        "args": "ImdbMovie, on_delete=models.CASCADE, related_name='ratings'"
+      },
+      {
+        "name": "rating",
+        "kind": "FloatField",
+        "args": ""
+      },
+      {
+        "name": "date_rated",
+        "kind": "DateField",
+        "args": "null=True, blank=True"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      },
+      {
+        "name": "updated_at",
+        "kind": "DateTimeField",
+        "args": "auto_now=True"
+      }
+    ]
+  },
+  {
+    "app": "queries",
+    "name": "Query",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "query_text",
+        "kind": "CharField",
+        "args": "max_length=255, blank=True, null=True"
+      },
+      {
+        "name": "suggestion",
+        "kind": "CharField",
+        "args": "max_length=255, blank=True, null=True"
+      },
+      {
+        "name": "is_crawled",
+        "kind": "BooleanField",
+        "args": "default=False"
+      }
+    ]
+  },
+  {
+    "app": "queries",
+    "name": "UserQuery",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "query_text",
+        "kind": "CharField",
+        "args": "max_length=255, blank=True, null=True"
+      },
+      {
+        "name": "suggestion",
+        "kind": "CharField",
+        "args": "max_length=255, blank=True, null=True"
+      }
+    ]
+  },
+  {
+    "app": "queries",
+    "name": "BraveQuery",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "query_text",
+        "kind": "CharField",
+        "args": "max_length=255, blank=True, null=True"
+      },
+      {
+        "name": "suggestion",
+        "kind": "CharField",
+        "args": "max_length=255, blank=True, null=True"
+      }
+    ]
+  },
+  {
+    "app": "queries",
+    "name": "GoogleQuery",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "query_text",
+        "kind": "CharField",
+        "args": "max_length=255, blank=True, null=True"
+      },
+      {
+        "name": "suggestion",
+        "kind": "CharField",
+        "args": "max_length=255, blank=True, null=True"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      },
+      {
+        "name": "updated_at",
+        "kind": "DateTimeField",
+        "args": "auto_now=True"
+      }
+    ]
+  },
+  {
+    "app": "queries",
+    "name": "BingQuery",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "query_text",
+        "kind": "CharField",
+        "args": "max_length=255, blank=True, null=True"
+      },
+      {
+        "name": "suggestion",
+        "kind": "CharField",
+        "args": "max_length=255, blank=True, null=True"
+      }
+    ]
+  },
+  {
+    "app": "websites",
+    "name": "Website",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "url",
+        "kind": "URLField",
+        "args": "unique=True, blank=True, null=True"
+      },
+      {
+        "name": "title",
+        "kind": "TextField",
+        "args": "blank=True, null=True"
+      },
+      {
+        "name": "body",
+        "kind": "TextField",
+        "args": "blank=True, null=True"
+      },
+      {
+        "name": "favicon",
+        "kind": "CharField",
+        "args": "max_length=400, blank=True, null=True"
+      },
+      {
+        "name": "query",
+        "kind": "CharField",
+        "args": "max_length=500, blank=True, null=True"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      },
+      {
+        "name": "updated_at",
+        "kind": "DateTimeField",
+        "args": "auto_now=True"
+      }
+    ]
+  },
+  {
+    "app": "websites",
+    "name": "WebsiteImage",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "url",
+        "kind": "URLField",
+        "args": "blank=True, null=True"
+      },
+      {
+        "name": "title",
+        "kind": "TextField",
+        "args": "blank=True, null=True"
+      },
+      {
+        "name": "description",
+        "kind": "TextField",
+        "args": "blank=True, null=True"
+      },
+      {
+        "name": "page_url",
+        "kind": "URLField",
+        "args": "blank=True, null=True"
+      },
+      {
+        "name": "thumbnail",
+        "kind": "URLField",
+        "args": "blank=True, null=True"
+      },
+      {
+        "name": "height",
+        "kind": "CharField",
+        "args": "max_length=400, blank=True, null=True"
+      },
+      {
+        "name": "width",
+        "kind": "CharField",
+        "args": "max_length=400, blank=True, null=True"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      },
+      {
+        "name": "updated_at",
+        "kind": "DateTimeField",
+        "args": "auto_now=True"
+      }
+    ]
+  },
+  {
+    "app": "memes",
+    "name": "Meme",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "meme_id",
+        "kind": "CharField",
+        "args": "max_length=500, unique=True"
+      },
+      {
+        "name": "title",
+        "kind": "TextField",
+        "args": ""
+      },
+      {
+        "name": "url",
+        "kind": "TextField",
+        "args": ""
+      },
+      {
+        "name": "post_link",
+        "kind": "TextField",
+        "args": ""
+      },
+      {
+        "name": "subreddit",
+        "kind": "CharField",
+        "args": "max_length=255"
+      },
+      {
+        "name": "author",
+        "kind": "CharField",
+        "args": "max_length=255"
+      },
+      {
+        "name": "nsfw",
+        "kind": "BooleanField",
+        "args": "default=False"
+      },
+      {
+        "name": "spoiler",
+        "kind": "BooleanField",
+        "args": "default=False"
+      },
+      {
+        "name": "ups",
+        "kind": "IntegerField",
+        "args": "default=0"
+      },
+      {
+        "name": "preview",
+        "kind": "TextField",
+        "args": "blank=True, null=True"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      }
+    ]
+  },
+  {
+    "app": "notifications",
+    "name": "Notification",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "from_user",
+        "kind": "ForeignKey",
+        "args": "User, on_delete=models.CASCADE, related_name='from_user_noti'"
+      },
+      {
+        "name": "to_user",
+        "kind": "ForeignKey",
+        "args": "User, on_delete=models.CASCADE, related_name='to_user_noti'"
+      },
+      {
+        "name": "date",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True, null=True"
+      },
+      {
+        "name": "is_read",
+        "kind": "BooleanField",
+        "args": "default=False"
+      },
+      {
+        "name": "target_content_type",
+        "kind": "ForeignKey",
+        "args": "ContentType, on_delete=models.CASCADE, related_name='notify_target', blank=True, null=True"
+      },
+      {
+        "name": "target_object_id",
+        "kind": "PositiveIntegerField",
+        "args": "null=True"
+      },
+      {
+        "name": "target",
+        "kind": "GenericForeignKey",
+        "args": "'target_content_type', 'target_object_id'"
+      }
+    ]
+  },
+  {
+    "app": "broadcasts",
+    "name": "Channel",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "name",
+        "kind": "CharField",
+        "args": "max_length=255"
+      },
+      {
+        "name": "owner",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE"
+      }
+    ]
+  },
+  {
+    "app": "broadcasts",
+    "name": "ChannelPost",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "channel",
+        "kind": "ForeignKey",
+        "args": "Channel, related_name='channelposts', on_delete=models.CASCADE"
+      },
+      {
+        "name": "author",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE"
+      },
+      {
+        "name": "content",
+        "kind": "TextField",
+        "args": ""
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      },
+      {
+        "name": "original_post",
+        "kind": "ForeignKey",
+        "args": " 'self', null=True, blank=True, related_name='reposts', on_delete=models.SET_NULL "
+      }
+    ]
+  },
+  {
+    "app": "broadcasts",
+    "name": "ChannelPostLike",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "channelpost",
+        "kind": "ForeignKey",
+        "args": "ChannelPost, related_name='likes', on_delete=models.CASCADE"
+      },
+      {
+        "name": "user",
+        "kind": "ForeignKey",
+        "args": "'users.User', on_delete=models.CASCADE"
+      },
+      {
+        "name": "created_at",
+        "kind": "DateTimeField",
+        "args": "auto_now_add=True"
+      }
+    ]
+  },
+  {
+    "app": "magazines",
+    "name": "Magazine",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "title",
+        "kind": "CharField",
+        "args": "max_length=255"
+      },
+      {
+        "name": "issue_date",
+        "kind": "DateField",
+        "args": ""
+      },
+      {
+        "name": "description",
+        "kind": "TextField",
+        "args": "blank=True"
+      }
+    ]
+  },
+  {
+    "app": "magazines",
+    "name": "Cover",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "magazine",
+        "kind": "OneToOneField",
+        "args": "Magazine, on_delete=models.CASCADE, related_name='cover'"
+      },
+      {
+        "name": "featured_person",
+        "kind": "CharField",
+        "args": "max_length=255"
+      },
+      {
+        "name": "image_url",
+        "kind": "URLField",
+        "args": ""
+      },
+      {
+        "name": "price",
+        "kind": "DecimalField",
+        "args": "max_digits=6, decimal_places=2"
+      },
+      {
+        "name": "is_available",
+        "kind": "BooleanField",
+        "args": "default=True"
+      }
+    ]
+  },
+  {
+    "app": "images",
+    "name": "Image",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "height",
+        "kind": "CharField",
+        "args": "max_length=400"
+      },
+      {
+        "name": "width",
+        "kind": "CharField",
+        "args": "max_length=400"
+      },
+      {
+        "name": "url",
+        "kind": "CharField",
+        "args": "max_length=400"
+      },
+      {
+        "name": "artist",
+        "kind": "ForeignKey",
+        "args": "'artists.Artist', related_name='images', on_delete=models.CASCADE, null=True, blank=True"
+      },
+      {
+        "name": "album",
+        "kind": "ForeignKey",
+        "args": "'albums.Album', related_name='images', on_delete=models.CASCADE, null=True, blank=True"
+      }
+    ]
+  },
+  {
+    "app": "suggestions",
+    "name": "Suggestion",
+    "fields": [
+      {
+        "name": "id",
+        "kind": "BigAutoField",
+        "args": "primary_key=True"
+      },
+      {
+        "name": "name",
+        "kind": "CharField",
+        "args": "max_length=100, blank=True"
+      },
+      {
+        "name": "spotify_url",
+        "kind": "CharField",
+        "args": "max_length=100, blank=True"
+      }
+    ]
+  }
+]
