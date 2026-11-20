@@ -7,6 +7,7 @@ After=network-online.target postgresql.service redis-server.service
 Type=simple
 User=litloop
 Group=litloop
+Environment=CORS_ADDITIONAL_ORIGINS=https://litloop.netlify.app
 EnvironmentFile=/etc/litloop/litloop.env
 WorkingDirectory=/var/lib/litloop
 StateDirectory=litloop
