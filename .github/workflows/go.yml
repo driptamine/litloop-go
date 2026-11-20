@@ -1,7 +1,25 @@
 name: Go backend
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
 jobs:
   verify:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            .github/workflows/go.yml
+      - run: go test -short ./...
+
+  integration:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -26,11 +44,10 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: go test ./...
-      - run: go test -race ./app ./internal/worker ./internal/storage -count=1
+      - name: Install FFmpeg on the GitHub-hosted runner
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: go test -race ./... -count=1
         env:
           TEST_DATABASE_URL: postgres://litloop:litloop@localhost:5432/litloop_test?sslmode=disable
           TEST_REDIS_URL: redis://localhost:6379/0
       - run: go vet ./...
-      - run: go build ./...

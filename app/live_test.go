@@ -19,6 +19,9 @@ import (
 )
 
 func TestLiveRedisCrossReplica(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Redis integration test")
+	}
 	raw := os.Getenv("TEST_REDIS_URL")
 	if raw == "" {
 		t.Skip("set TEST_REDIS_URL for Redis integration")
@@ -64,6 +67,9 @@ func TestLiveRedisCrossReplica(t *testing.T) {
 	}
 }
 func TestLiveFFmpegEncoding(t *testing.T) {
+	if testing.Short() {
+		t.Skip("FFmpeg integration test")
+	}
 	if _, e := exec.LookPath("ffmpeg"); e != nil {
 		t.Skip("ffmpeg unavailable")
 	}
