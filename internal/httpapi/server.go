@@ -68,7 +68,14 @@ func NewServer(db *gorm.DB, c config.Config) *Server {
 	r := chi.NewRouter()
 	s.Router = r
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
-	r.Use(cors.Handler(cors.Options{AllowedOrigins: c.Origins, AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}, AllowedHeaders: []string{"Authorization", "Content-Type"}, AllowCredentials: true, MaxAge: 300}))
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins: c.Origins,
+		AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		// The deployed frontend's search client sends a numeric header named "0".
+		AllowedHeaders:   []string{"0", "Accept-Version", "Authorization", "Content-Type", "User-Agent"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/" {
