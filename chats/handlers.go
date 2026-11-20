@@ -111,8 +111,18 @@ func (s *Handler) ChatAction(q *Request) any {
 		}
 		return map[string]any{"status": "deleted", "id": c.ID}
 	}
-	Check(s.DB.Model(&models.Message{}).Where("chat_id = ? AND (user_id <> ? OR user_id IS NULL)", c.ID, q.User.ID).Update("is_read", true).Error)
-	s.Hub.Broadcast(fmt.Sprint(c.ID), map[string]any{"type": "messages_read", "user_id": q.User.ID})
+	var messages []models.Message
+	Check(s.DB.Model(&messages).Clauses(clause.Returning{Columns: []clause.Column{{Name: "id"}}}).
+		Where("chat_id = ? AND (user_id <> ? OR user_id IS NULL) AND is_read = ?", c.ID, q.User.ID, false).
+		Update("is_read", true).Error)
+	if len(messages) > 0 {
+		ids := make([]int64, 0, len(messages))
+		for _, m := range messages {
+			ids = append(ids, m.ID)
+		}
+		s.Hub.Broadcast(fmt.Sprint(c.ID), map[string]any{"type": "read_receipt", "read_by": q.User.ID, "message_ids": ids})
+	}
+	s.Hub.Broadcast("user:"+fmt.Sprint(q.User.ID), map[string]any{"type": "unread_update", "unread_count": s.UnreadMessages(q.User.ID)})
 	return map[string]any{"status": "success", "chat_id": c.ID}
 }
 func (s *Handler) SendMessage(q *Request) any {

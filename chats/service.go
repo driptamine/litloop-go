@@ -21,6 +21,19 @@ func (s *Handler) ChatAccess(q *Request, id int64) models.Chat {
 	}
 	return c
 }
+
+func (s *Handler) UnreadMessages(userID int64) int64 {
+	chats := s.DB.Model(&models.Chat{}).
+		Select("chats_chat.id").
+		Joins("JOIN chats_chat_participants ON chats_chat_participants.chat_id = chats_chat.id").
+		Where("chats_chat_participants.user_id = ? AND chats_chat.is_saved_messages = ?", userID, false)
+	var count int64
+	Check(s.DB.Model(&models.Message{}).
+		Where("chat_id IN (?) AND (user_id <> ? OR user_id IS NULL) AND is_read = ?", chats, userID, false).
+		Count(&count).Error)
+	return count
+}
+
 func (s *Handler) SaveMessage(chat int64, u models.User, b map[string]any) models.Message {
 	if !s.Member(chat, u.ID) {
 		Fail(403, "Chat membership required")
@@ -56,9 +69,13 @@ func (s *Handler) SaveMessage(chat int64, u models.User, b map[string]any) model
 		return nil
 	}))
 	message := s.MessageJSON(m)
-	s.Hub.Broadcast(fmt.Sprint(chat), map[string]any{"type": "new_message", "message": message})
 	for _, p := range All[models.ChatParticipant](s.DB.Where("chat_id = ? AND user_id <> ?", chat, u.ID)) {
-		s.Hub.Broadcast("user:"+fmt.Sprint(p.UserID), map[string]any{"type": "new_message", "chat_id": chat, "message_id": m.ID, "sender": u.Username, "preview": Truncate(text, 50), "text": Truncate(text, 50), "created_at": m.CreatedAt})
+		s.Hub.Broadcast("user:"+fmt.Sprint(p.UserID), map[string]any{
+			"type": "new_message", "chat_id": chat, "chat_user_id": u.ID, "message_id": m.ID,
+			"sender": u.Username, "preview": Truncate(text, 50), "text": Truncate(text, 50),
+			"created_at": m.CreatedAt, "unread_count": s.UnreadMessages(p.UserID),
+		})
 	}
+	s.Hub.Broadcast(fmt.Sprint(chat), map[string]any{"type": "new_message", "message": message})
 	return m
 }

@@ -106,6 +106,7 @@ func (s *Handler) Websocket(q *Request) any {
 					room = "user:" + strconv.FormatInt(u.ID, 10)
 					s.Hub.Add(room, p)
 					p.Send <- map[string]any{"type": "auth_ok"}
+					p.Send <- map[string]any{"type": "unread_update", "unread_count": s.UnreadMessages(u.ID)}
 				}
 				return
 			}
@@ -113,7 +114,7 @@ func (s *Handler) Websocket(q *Request) any {
 				Fail(403, "Chat membership required")
 			}
 			typ := Str(b["type"])
-			if typ == "" || typ == "chat_message" {
+			if typ == "" || typ == "chat_message" || typ == "send_message" {
 				s.SaveMessage(q.ID("id"), *q.User, b)
 			} else if typ == "typing" {
 				s.Hub.Broadcast(room, map[string]any{"type": "typing", "user_id": q.User.ID, "username": q.User.Username, "is_typing": b["is_typing"]})

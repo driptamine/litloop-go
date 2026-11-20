@@ -176,6 +176,22 @@ func TestChatsWebsocketAndMembership(t *testing.T) {
 	f.req("POST", "/chats/1/send", bob, map[string]any{"text": "intrusion"}, 403)
 	c := f.req("GET", fmt.Sprintf("/chats/direct/%d", bid), f.Token, nil, 200)
 	id := int64(c["id"].(float64))
+	chats := f.req("GET", "/chats/me", f.Token, nil, 200)["chats"].([]any)
+	found := false
+	for _, item := range chats {
+		chat := item.(map[string]any)
+		if chat["id"] != c["id"] {
+			continue
+		}
+		participant := chat["other_participant"].(map[string]any)
+		if participant["id"] != float64(bid) || chat["target_user"] != nil {
+			t.Fatal(chat)
+		}
+		found = true
+	}
+	if !found {
+		t.Fatal("direct chat missing from chat list")
+	}
 	path := fmt.Sprintf("/ws/chat/%d/?token=%s", id, url.QueryEscape(bob))
 	ws, _, e := Websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(f.http.URL, "http")+path, nil)
 	if e != nil {
@@ -191,7 +207,8 @@ func TestChatsWebsocketAndMembership(t *testing.T) {
 	if event["type"] != "new_message" {
 		t.Fatal(event)
 	}
-	if e = ws.WriteJSON(map[string]any{"type": "chat_message", "text": "Hi Alice"}); e != nil {
+	firstMessageID := event["message"].(map[string]any)["id"]
+	if e = ws.WriteJSON(map[string]any{"type": "send_message", "text": "Hi Alice"}); e != nil {
 		t.Fatal(e)
 	}
 	if e = ws.ReadJSON(&event); e != nil {
@@ -202,6 +219,12 @@ func TestChatsWebsocketAndMembership(t *testing.T) {
 		t.Fatal(c)
 	}
 	f.req("POST", fmt.Sprintf("/chats/%d/read", id), bob, map[string]any{}, 200)
+	if e = ws.ReadJSON(&event); e != nil {
+		t.Fatal(e)
+	}
+	if ids, ok := event["message_ids"].([]any); event["type"] != "read_receipt" || !ok || len(ids) != 1 || ids[0] != firstMessageID {
+		t.Fatal(event)
+	}
 }
 func TestLocalUploadAndPrivateVideo(t *testing.T) {
 	f := setup(t)

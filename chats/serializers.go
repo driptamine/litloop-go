@@ -44,7 +44,9 @@ func (s *Handler) ChatJSON(c models.Chat, user int64, detail bool) map[string]an
 			if c.ChatType == "direct" {
 				o["username"] = u.Username
 				o["avatar"] = u.Avatar
-				o["target_user"] = u.Username
+				if detail {
+					o["target_user"] = u.Username
+				}
 			}
 		}
 	}
