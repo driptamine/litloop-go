@@ -5,6 +5,7 @@ import (
 	"io"
 	. "litloop/backend/internal/httpapi"
 	"litloop/backend/internal/models"
+	"litloop/backend/internal/storage"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -14,7 +15,7 @@ import (
 )
 
 func (s *Handler) NativeMedia(q *Request) any {
-	key := q.Param("*")
+	key := strings.TrimPrefix(q.R.URL.Path, "/gcs-media/")
 	exp := q.R.URL.Query().Get("expires")
 	n, e := strconv.ParseInt(exp, 10, 64)
 	if e != nil || n < time.Now().Unix() || !SecureEqual(q.R.URL.Query().Get("signature"), s.SignMedia("gcs/"+key, exp)) {
@@ -25,7 +26,11 @@ func (s *Handler) NativeMedia(q *Request) any {
 	if r := q.R.Header.Get("Range"); r != "" {
 		req.Header.Set("Range", r)
 	}
-	res, e := s.GoogleClient(q.R.Context()).Do(req)
+	client, e := storage.NativeReadClient(q.R.Context(), s.Config)
+	if e != nil {
+		Fail(503, "Native GCS is not configured")
+	}
+	res, e := client.Do(req)
 	Check(e)
 	defer res.Body.Close()
 	if res.StatusCode != 200 && res.StatusCode != 206 {

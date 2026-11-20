@@ -10,6 +10,21 @@ import (
 	"time"
 )
 
+func NativeReadClient(ctx context.Context, c config.Config) (*http.Client, error) {
+	if c.GoogleCredentials != "" {
+		return NativeClient(ctx, c)
+	}
+	if c.GCSBucket == "" {
+		return nil, fmt.Errorf("native GCS is not configured")
+	}
+	client, err := google.DefaultClient(ctx, "https://www.googleapis.com/auth/devstorage.read_only")
+	if err != nil {
+		return nil, err
+	}
+	client.Timeout = 5 * time.Minute
+	return client, nil
+}
+
 func NativeClient(ctx context.Context, c config.Config) (*http.Client, error) {
 	if c.GCSBucket == "" || c.GoogleCredentials == "" {
 		return nil, fmt.Errorf("native GCS is not configured")

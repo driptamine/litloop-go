@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"litloop/backend/internal/config"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -22,7 +23,8 @@ func LocalURL(c config.Config, key string) string {
 }
 func NativeURL(c config.Config, key string) string {
 	exp := strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10)
-	return strings.TrimRight(c.PublicURL, "/") + "/gcs-media/" + key + "?expires=" + exp + "&signature=" + Signature(c, "gcs/"+key, exp)
+	path := (&url.URL{Path: "/gcs-media/" + key}).EscapedPath()
+	return strings.TrimRight(c.PublicURL, "/") + path + "?expires=" + exp + "&signature=" + Signature(c, "gcs/"+key, exp)
 }
 func MediaURL(c config.Config, r2, gcs, s3key string) string {
 	key, provider := r2, "r2"
@@ -41,7 +43,7 @@ func MediaURL(c config.Config, r2, gcs, s3key string) string {
 	if strings.HasPrefix(key, "local/") {
 		return LocalURL(c, strings.TrimPrefix(key, "local/"))
 	}
-	if provider == "gcs" && c.GCSAccessKey == "" && c.GoogleCredentials != "" {
+	if provider == "gcs" && c.GCSAccessKey == "" && c.GCSBucket != "" {
 		return NativeURL(c, key)
 	}
 	public := ""
