@@ -12,12 +12,14 @@ name: Deploy to GCE
 #   GCP_PROJECT_ID             - Google Cloud project ID
 #   GCP_ZONE                   - VM zone, e.g. europe-west1-b
 #   GCP_INSTANCE_NAME          - Compute Engine instance name
+#
+# Optional GitHub repository variables:
 #   GCP_VM_ARCH                - VM architecture: amd64 (default) or arm64
 #   GCP_APP_DIR                - Temporary upload directory (default: /var/tmp/litloop-deploy)
 #   GCP_USE_IAP                - Use an IAP tunnel for SSH (default: true)
 #   GCP_RUN_MIGRATIONS         - Set to "false" to skip migrations (default: true)
 #
-# Required GitHub repository secrets:
+# Required GitHub Actions secrets (set on the production environment or the repository):
 #   GCP_WORKLOAD_IDENTITY_PROVIDER - projects/<number>/locations/global/workloadIdentityPools/<pool>/providers/<provider>
 #   GCP_DEPLOY_SERVICE_ACCOUNT     - Service account used by GitHub Actions
 #
@@ -62,6 +64,27 @@ jobs:
     environment: production
 
     steps:
+      - name: Check deployment configuration
+        shell: bash
+        env:
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_DEPLOY_SERVICE_ACCOUNT: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+        run: |
+          missing=0
+          require_setting() {
+            if [[ -z "$1" ]]; then
+              echo "::error::Set $2."
+              missing=1
+            fi
+          }
+
+          require_setting "$GCP_WORKLOAD_IDENTITY_PROVIDER" "the GCP_WORKLOAD_IDENTITY_PROVIDER GitHub Actions secret on the production environment or the repository"
+          require_setting "$GCP_DEPLOY_SERVICE_ACCOUNT" "the GCP_DEPLOY_SERVICE_ACCOUNT GitHub Actions secret on the production environment or the repository"
+          require_setting "$PROJECT_ID" "the GCP_PROJECT_ID GitHub Actions repository variable"
+          require_setting "$ZONE" "the GCP_ZONE GitHub Actions repository variable"
+          require_setting "$INSTANCE" "the GCP_INSTANCE_NAME GitHub Actions repository variable"
+          exit "$missing"
+
       - name: Checkout
         uses: actions/checkout@v4
 
