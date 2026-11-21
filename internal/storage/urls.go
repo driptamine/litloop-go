@@ -19,7 +19,12 @@ func Signature(c config.Config, key, expires string) string {
 }
 func LocalURL(c config.Config, key string) string {
 	exp := strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10)
-	return strings.TrimRight(c.PublicURL, "/") + "/media/" + key + "?expires=" + exp + "&signature=" + Signature(c, key, exp)
+	path := (&url.URL{Path: "/media/" + key}).EscapedPath()
+	return strings.TrimRight(c.PublicURL, "/") + path + "?expires=" + exp + "&signature=" + Signature(c, key, exp)
+}
+
+func ChatAttachmentPrefix(userID int64) string {
+	return "chat-attachments/" + strconv.FormatInt(userID, 10) + "/"
 }
 func NativeURL(c config.Config, key string) string {
 	exp := strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10)
@@ -55,6 +60,10 @@ func MediaURL(c config.Config, r2, gcs, s3key string) string {
 	if public != "" {
 		return strings.TrimRight(public, "/") + "/" + key
 	}
+	return PresignedURL(c, provider, key)
+}
+
+func PresignedURL(c config.Config, provider, key string) string {
 	store, e := New(c, provider)
 	if e != nil {
 		return ""

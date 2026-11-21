@@ -1,10 +1,10 @@
 package media
 
 import (
-	"bytes"
 	"io"
 	. "litloop/backend/internal/httpapi"
 	"litloop/backend/internal/models"
+	"litloop/backend/internal/storage"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -44,17 +44,27 @@ func (s *Handler) MultipartUpload(q *Request) (string, string, string) {
 }
 func (s *Handler) SaveUploadedFile(q *Request, f multipart.File, head *multipart.FileHeader) (string, string, string) {
 	filename := filepath.Base(head.Filename)
-	key := "attachments/" + Token() + strings.ToLower(filepath.Ext(filename))
+	chatUpload := q.R.URL.Path == "/chats/upload" && s.Config.R2Bucket != ""
+	prefix := "attachments/"
+	if chatUpload {
+		prefix = storage.ChatAttachmentPrefix(q.User.ID)
+	}
+	name := Token() + strings.ToLower(filepath.Ext(filename))
+	if chatUpload && (strings.ContainsAny(name, `/\`) || strings.Contains(name, "..")) {
+		name = strings.SplitN(name, ".", 2)[0]
+	}
+	key := prefix + name
 	typ := head.Header.Get("Content-Type")
-	prefix := make([]byte, 512)
-	n, _ := io.ReadFull(f, prefix)
-	detected := http.DetectContentType(prefix[:n])
+	sample := make([]byte, 512)
+	n, _ := io.ReadFull(f, sample)
+	detected := http.DetectContentType(sample[:n])
 	if !strings.HasPrefix(detected, "application/octet-stream") {
 		typ = detected
 	}
-	reader := io.MultiReader(bytes.NewReader(prefix[:n]), f)
+	_, err := f.Seek(0, io.SeekStart)
+	Check(err)
 	provider := "local"
-	if strings.Contains(q.R.URL.Path, "/r2") {
+	if chatUpload || strings.Contains(q.R.URL.Path, "/r2") {
 		provider = "r2"
 	} else if strings.Contains(q.R.URL.Path, "/gcs") {
 		provider = "gcs"
@@ -70,17 +80,22 @@ func (s *Handler) SaveUploadedFile(q *Request, f multipart.File, head *multipart
 		Check(os.MkdirAll(filepath.Dir(path), 0755))
 		out, e := os.Create(path)
 		Check(e)
-		_, e = io.Copy(out, reader)
+		_, e = io.Copy(out, f)
 		closeErr := out.Close()
 		Check(e)
 		Check(closeErr)
 		key = "local/" + key
 	} else {
-		Check(s.StorageFor(provider).Put(q.R.Context(), key, typ, reader))
+		Check(s.StorageFor(provider).Put(q.R.Context(), key, typ, f))
 	}
 	uri := ""
 	if provider == "local" {
 		uri = s.LocalURL(strings.TrimPrefix(key, "local/"))
+	} else if chatUpload {
+		uri = storage.PresignedURL(s.Config, "r2", key)
+		if uri == "" {
+			Fail(502, "Could not sign the chat attachment URL")
+		}
 	} else if provider == "r2" {
 		uri = s.MediaURL(key, "", "")
 	} else {

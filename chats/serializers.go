@@ -12,6 +12,9 @@ func (s *Handler) VoiceJSON(v models.VoiceMessage) any {
 }
 func (s *Handler) MessageJSON(m models.Message) map[string]any {
 	o := Object(m)
+	if attachments, ok := o["attachments"].([]any); ok {
+		s.setAttachmentURLs(attachments, m)
+	}
 	o["username"] = "AI"
 	o["avatar"] = nil
 	o["voice_message"] = nil

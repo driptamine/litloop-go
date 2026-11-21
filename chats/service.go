@@ -43,19 +43,20 @@ func (s *Handler) SaveMessage(chat int64, u models.User, b map[string]any) model
 	if len(text) > 100000 {
 		Fail(400, "Message too long")
 	}
-	attachments := b["attachments"]
+	attachments, ok := b["attachments"].([]any)
+	if !ok && b["attachments"] != nil {
+		Fail(400, "attachments must be an array")
+	}
 	if attachments == nil {
 		attachments = []any{}
 	}
-	if _, ok := attachments.([]any); !ok {
-		Fail(400, "attachments must be an array")
-	}
+	s.storeAttachmentKeys(attachments, u.ID)
 	voiceID := int64(0)
 	if b["voice_message_id"] != nil {
 		voiceID = Num(b["voice_message_id"])
 		Get[models.VoiceMessage](s.DB.Where("user_id = ?", u.ID), voiceID)
 	}
-	if strings.TrimSpace(text) == "" && len(attachments.([]any)) == 0 && voiceID == 0 {
+	if strings.TrimSpace(text) == "" && len(attachments) == 0 && voiceID == 0 {
 		Fail(400, "Message is empty")
 	}
 	m := models.Message{ChatID: Ptr(chat), UserID: Ptr(u.ID), Text: text, Attachments: models.AsJSON(attachments)}
