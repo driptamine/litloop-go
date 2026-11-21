@@ -31,6 +31,8 @@ type Operations struct {
 	ChatAction            func(q *Request) any
 	ChatJSON              func(c models.Chat, user int64, detail bool) map[string]any
 	ChatList              func(q *Request) any
+	CallCommand           func(q *Request) any
+	IncomingCall          func(q *Request) any
 	MessagesAfter         func(q *Request) any
 	Claims                func(raw string, kind string) JWT.MapClaims
 	CommentCreate         func(q *Request) any

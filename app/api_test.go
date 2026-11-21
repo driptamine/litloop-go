@@ -316,6 +316,71 @@ func TestCallNotificationsOutsideChat(t *testing.T) {
 	}
 }
 
+func TestCallCommandsAndRingingRecoveryWithoutRoomSockets(t *testing.T) {
+	f := setup(t)
+	bob, bid := f.second()
+	chat := f.req("GET", fmt.Sprintf("/chats/direct/%d", bid), f.Token, nil, 200)
+	command := fmt.Sprintf("/chats/%.0f/call", chat["id"])
+	started := f.req("POST", command, f.Token, map[string]any{"type": "voip_call_start", "call_type": "audio"}, 200)
+	callID := started["call_id"]
+	restored := f.req("GET", "/chats/calls/incoming", bob, nil, 200)["incoming_call"].(map[string]any)
+	if restored["call_id"] != callID || restored["call_type"] != "voice" || restored["expires_at"] == nil {
+		t.Fatal(restored)
+	}
+	if own := f.req("GET", "/chats/calls/incoming", f.Token, nil, 200)["incoming_call"]; own != nil {
+		t.Fatal(own)
+	}
+
+	connect := func(token string) *Websocket.Conn {
+		t.Helper()
+		conn, _, err := Websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(f.http.URL, "http")+"/ws/notifications/", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { conn.Close() })
+		if err := conn.WriteJSON(map[string]any{"type": "auth", "token": token}); err != nil {
+			t.Fatal(err)
+		}
+		_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+		var event map[string]any
+		if err := conn.ReadJSON(&event); err != nil || event["type"] != "auth_ok" {
+			t.Fatalf("notification auth: %v %v", event, err)
+		}
+		return conn
+	}
+	expect := func(conn *Websocket.Conn, kind string) map[string]any {
+		t.Helper()
+		_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+		for {
+			var event map[string]any
+			if err := conn.ReadJSON(&event); err != nil {
+				t.Fatalf("waiting for %s: %v", kind, err)
+			}
+			if event["type"] == kind {
+				if event["call_id"] != callID || event["chat_id"] != chat["id"] {
+					t.Fatal(event)
+				}
+				return event
+			}
+		}
+	}
+
+	caller := connect(f.Token)
+	recipient := connect(bob)
+	f.req("POST", command, bob, map[string]any{"type": "voip_call_accept", "call_id": callID}, 200)
+	expect(caller, "call_accepted")
+	f.req("POST", command, f.Token, map[string]any{
+		"type": "voip_webrtc_signal", "call_id": callID,
+		"signal_data": map[string]any{"type": "offer", "sdp": "test offer"},
+	}, 200)
+	event := expect(recipient, "voip_webrtc_signal")
+	if event["signal_data"].(map[string]any)["sdp"] != "test offer" {
+		t.Fatal(event)
+	}
+	f.req("POST", command, bob, map[string]any{"type": "voip_call_end", "call_id": callID}, 200)
+	expect(caller, "call_closed")
+}
+
 func TestRealtimeDeliveryAndPresenceAcrossSessions(t *testing.T) {
 	f := setup(t)
 	bob, bid := f.second()

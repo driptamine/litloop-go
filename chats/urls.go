@@ -23,6 +23,8 @@ func Register(s *Server) {
 	s.Route("POST", "/chats/group/{id:[0-9]+}/remove", true, s.GroupMember)
 	s.Route("POST", "/chats/{id:[0-9]+}/send", true, s.SendMessage)
 	s.Route("GET", "/chats/{id:[0-9]+}/messages", true, s.MessagesAfter)
+	s.Route("POST", "/chats/{id:[0-9]+}/call", true, s.CallCommand)
+	s.Route("GET", "/chats/calls/incoming", true, s.IncomingCall)
 	s.Route("POST", "/chats/{id:[0-9]+}/read", true, s.ChatAction)
 	s.Route("POST,DELETE", "/chats/{id:[0-9]+}/delete", true, s.ChatAction)
 	s.Route("POST", "/chats/upload", true, s.Attachment)
