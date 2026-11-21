@@ -6,6 +6,7 @@ import (
 	"litloop/backend/internal/models"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 
 	"gorm.io/gorm"
@@ -49,11 +50,12 @@ func (s *Handler) OAuth(q *Request) any {
 			if secret == "" {
 				Fail(503, "GOOGLE_CLIENT_SECRET is not configured")
 			}
-			redirect := s.Config.FrontendURL + "/auth/google/callback"
+			redirect := strings.TrimRight(s.Config.FrontendURL, "/") + "/auth/google/callback"
 			if uri := Str(b["redirect_uri"]); uri != "" {
-				if uri != redirect {
-					Fail(400, "redirect_uri must match FRONTEND_URL/auth/google/callback")
+				if uri != redirect && !slices.Contains(s.Config.GoogleAdditionalRedirectURIs, uri) {
+					Fail(400, "Google redirect URI is not allowed")
 				}
+				redirect = uri
 			}
 			data := s.FetchJSON(q, "POST", "https://oauth2.googleapis.com/token", []byte(url.Values{"client_id": {s.Config.GoogleClientID}, "client_secret": {secret}, "code": {code}, "grant_type": {"authorization_code"}, "redirect_uri": {redirect}}.Encode()), map[string]string{"Content-Type": "application/x-www-form-urlencoded"}).(map[string]any)
 			idToken = Str(data["id_token"])

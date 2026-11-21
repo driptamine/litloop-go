@@ -66,6 +66,38 @@ func TestExternalAdapters(t *testing.T) {
 	})
 	f.req("GET", "/chats/gemini?q=Hi", f.Token, nil, 502)
 }
+
+func TestGoogleCodeExchangeRedirectURIs(t *testing.T) {
+	f := setup(t)
+	t.Setenv("GOOGLE_CLIENT_SECRET", "test-google-secret")
+	const primary = "https://litloop.netlify.app/auth/google/callback"
+	const layero = "https://litloop.layero.app/auth/google/callback"
+	f.s.Config.FrontendURL = "https://litloop.netlify.app"
+	f.s.Config.GoogleClientID = "client-id"
+	f.s.Config.GoogleAdditionalRedirectURIs = []string{layero}
+	var redirects []string
+	f.s.Client.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Host == "oauth2.googleapis.com" && r.URL.Path == "/token" {
+			if err := r.ParseForm(); err != nil {
+				return nil, err
+			}
+			redirects = append(redirects, r.Form.Get("redirect_uri"))
+			return response(map[string]any{"id_token": "test-id-token"}), nil
+		}
+		if r.URL.Host == "oauth2.googleapis.com" && r.URL.Path == "/tokeninfo" {
+			return response(map[string]any{"aud": "client-id", "email_verified": true, "email": "oauth-layero@example.test"}), nil
+		}
+		return nil, fmt.Errorf("unexpected Google endpoint %s", r.URL.Path)
+	})
+	for _, uri := range []string{primary, layero} {
+		f.req("POST", "/auth/google/token", "", map[string]any{"code": "test-code", "redirect_uri": uri}, 200)
+	}
+	f.req("POST", "/auth/google/token", "", map[string]any{"code": "test-code", "redirect_uri": layero + "?unexpected=1"}, 400)
+	if len(redirects) != 2 || redirects[0] != primary || redirects[1] != layero {
+		t.Fatal(redirects)
+	}
+}
+
 func TestCSVImportsAndOwnership(t *testing.T) {
 	f := setup(t)
 	bob, _ := f.second()
