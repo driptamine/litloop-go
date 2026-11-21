@@ -16,14 +16,18 @@ type Peer struct {
 func (p *Peer) Close() { p.Once.Do(func() { close(p.Done); _ = p.Conn.Close() }) }
 
 type Hub struct {
-	mu       sync.RWMutex
-	rooms    map[string]map[*Peer]bool
-	presence map[int64]map[string]struct{}
-	bus      *redisBus
+	mu          sync.RWMutex
+	rooms       map[string]map[*Peer]bool
+	presence    map[int64]map[string]struct{}
+	callSignals map[string]*callSignalBuffer
+	bus         *redisBus
 }
 
 func NewHub() *Hub {
-	return &Hub{rooms: map[string]map[*Peer]bool{}, presence: map[int64]map[string]struct{}{}}
+	return &Hub{
+		rooms: map[string]map[*Peer]bool{}, presence: map[int64]map[string]struct{}{},
+		callSignals: map[string]*callSignalBuffer{},
+	}
 }
 func (h *Hub) Add(room string, p *Peer) {
 	h.mu.Lock()

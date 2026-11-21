@@ -1,6 +1,7 @@
 package chats
 
 import (
+	"crypto/rand"
 	"errors"
 	"fmt"
 	. "litloop/backend/internal/httpapi"
@@ -49,6 +50,30 @@ func (s *Handler) CallCommand(q *Request) any {
 	}
 	s.broadcastCall(q, b)
 	return map[string]any{"call_id": b["call_id"], "expires_at": b["expires_at"]}
+}
+
+func (s *Handler) CallState(q *Request) any {
+	q.W.Header().Set("Cache-Control", "no-store")
+	chat := s.ChatAccess(q, q.ID("id"))
+	id := Num(q.R.URL.Query().Get("call_id"))
+	var call models.Call
+	err := s.DB.Where("id = ? AND chat_id = ? AND (caller_id = ? OR receiver_id = ?)",
+		id, chat.ID, q.User.ID, q.User.ID).First(&call).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		Fail(404, "Call is no longer available")
+	}
+	Check(err)
+	status := call.Status
+	if status == "initiated" && !time.Now().Before(call.StartedAt.Add(ringDuration)) {
+		status = "expired"
+	}
+	result := map[string]any{"call_id": call.ID, "chat_id": call.ChatID, "status": status}
+	if status == "ongoing" && q.R.URL.Query().Get("signals") == "1" {
+		signals, err := s.Hub.CallSignals(call.ID, q.User.ID)
+		Check(err)
+		result["signals"] = signals
+	}
+	return result
 }
 
 func (s *Handler) broadcastCall(q *Request, b map[string]any) {
@@ -131,10 +156,14 @@ func (s *Handler) VoIP(q *Request, b map[string]any) bool {
 		default:
 			return false
 		}
-		s.Hub.Broadcast(fmt.Sprint("user:", target), map[string]any{
+		signalID := rand.Text()
+		b["signal_id"] = signalID
+		event := map[string]any{
 			"type": typ, "chat_id": call.ChatID, "call_id": call.ID,
-			"from_user_id": actor, "signal_data": signal,
-		})
+			"from_user_id": actor, "signal_id": signalID, "signal_data": signal,
+		}
+		Check(s.Hub.SaveCallSignal(call.ID, target, event))
+		s.Hub.Broadcast(fmt.Sprint("user:", target), event)
 		return true
 	}
 
@@ -142,6 +171,9 @@ func (s *Handler) VoIP(q *Request, b map[string]any) bool {
 	updates := map[string]any{}
 	switch typ {
 	case "voip_call_accept", "voip_call_reject":
+		if typ == "voip_call_accept" && call.Status == "ongoing" && call.ReceiverID != nil && actor == *call.ReceiverID {
+			return true
+		}
 		if call.Status != "initiated" || actor == call.CallerID || !now.Before(call.StartedAt.Add(ringDuration)) {
 			return false
 		}

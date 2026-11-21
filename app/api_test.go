@@ -330,6 +330,11 @@ func TestCallCommandsAndRingingRecoveryWithoutRoomSockets(t *testing.T) {
 	if own := f.req("GET", "/chats/calls/incoming", f.Token, nil, 200)["incoming_call"]; own != nil {
 		t.Fatal(own)
 	}
+	statePath := fmt.Sprintf("%s?call_id=%.0f&signals=1", command, callID)
+	if status := f.req("GET", statePath, f.Token, nil, 200)["status"]; status != "initiated" {
+		t.Fatal(status)
+	}
+	f.req("GET", statePath, bob, nil, 404)
 
 	connect := func(token string) *Websocket.Conn {
 		t.Helper()
@@ -369,6 +374,10 @@ func TestCallCommandsAndRingingRecoveryWithoutRoomSockets(t *testing.T) {
 	recipient := connect(bob)
 	f.req("POST", command, bob, map[string]any{"type": "voip_call_accept", "call_id": callID}, 200)
 	expect(caller, "call_accepted")
+	f.req("POST", command, bob, map[string]any{"type": "voip_call_accept", "call_id": callID}, 200)
+	if status := f.req("GET", statePath, f.Token, nil, 200)["status"]; status != "ongoing" {
+		t.Fatal(status)
+	}
 	f.req("POST", command, f.Token, map[string]any{
 		"type": "voip_webrtc_signal", "call_id": callID,
 		"signal_data": map[string]any{"type": "offer", "sdp": "test offer"},
@@ -377,8 +386,18 @@ func TestCallCommandsAndRingingRecoveryWithoutRoomSockets(t *testing.T) {
 	if event["signal_data"].(map[string]any)["sdp"] != "test offer" {
 		t.Fatal(event)
 	}
+	replayed := f.req("GET", statePath, bob, nil, 200)["signals"].([]any)
+	if len(replayed) != 1 || replayed[0].(map[string]any)["signal_id"] != event["signal_id"] {
+		t.Fatal(replayed)
+	}
+	if own := f.req("GET", statePath, f.Token, nil, 200)["signals"].([]any); len(own) != 0 {
+		t.Fatal(own)
+	}
 	f.req("POST", command, bob, map[string]any{"type": "voip_call_end", "call_id": callID}, 200)
 	expect(caller, "call_closed")
+	if status := f.req("GET", statePath, f.Token, nil, 200)["status"]; status != "completed" {
+		t.Fatal(status)
+	}
 }
 
 func TestRealtimeDeliveryAndPresenceAcrossSessions(t *testing.T) {
