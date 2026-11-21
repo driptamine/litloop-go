@@ -23,6 +23,7 @@ type Config struct {
 	GeminiKey, GeminiModel, BraveKey, BingKey, GoogleSearchKey, GoogleSearchCX, TMDBKey                     string
 	SMTPAddr, SMTPUser, SMTPPassword, SMTPFrom, FrontendURL, TranscriptionURL, TranscriptionSecret, SpotURL string
 	ICEURLs, ICEUsername, ICECredential                                                                     string
+	AstraDatabaseID, AstraToken, AstraKeyspace                                                              string
 }
 
 func env(k, d string) string {
@@ -62,5 +63,6 @@ func Load() Config {
 		GeminiKey: os.Getenv("GEMINI_API_KEY"), GeminiModel: env("GEMINI_MODEL", "gemini-2.5-flash"), BraveKey: os.Getenv("BRAVE_API_KEY"), BingKey: os.Getenv("BING_API_KEY"), GoogleSearchKey: os.Getenv("GOOGLE_SEARCH_API_KEY"), GoogleSearchCX: os.Getenv("GOOGLE_SEARCH_CX"), TMDBKey: os.Getenv("TMDB_API_KEY"),
 		SMTPAddr: os.Getenv("SMTP_ADDR"), SMTPUser: os.Getenv("SMTP_USER"), SMTPPassword: os.Getenv("SMTP_PASSWORD"), SMTPFrom: os.Getenv("SMTP_FROM"), FrontendURL: env("FRONTEND_URL", "http://localhost:3000"), TranscriptionURL: os.Getenv("TRANSCRIPTION_URL"), TranscriptionSecret: os.Getenv("TRANSCRIPTION_SECRET"), SpotURL: os.Getenv("SPOT_LAUNCH_URL"),
 		ICEURLs: env("ICE_URLS", "stun:stun.l.google.com:19302"), ICEUsername: os.Getenv("ICE_USERNAME"), ICECredential: os.Getenv("ICE_CREDENTIAL"),
+		AstraDatabaseID: os.Getenv("ASTRA_DB_ID"), AstraToken: os.Getenv("ASTRA_DB_APPLICATION_TOKEN"), AstraKeyspace: env("ASTRA_DB_KEYSPACE", "engagement"),
 	}
 }

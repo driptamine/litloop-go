@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm/clause"
 	"io"
 	"litloop/backend/internal/config"
+	"litloop/backend/internal/engagement"
 	"litloop/backend/internal/models"
 	"litloop/backend/internal/storage"
 	"log/slog"
@@ -25,6 +26,7 @@ type Worker struct {
 	DB     *gorm.DB
 	Config config.Config
 	Client *http.Client
+	astra  *engagement.Store
 }
 
 func New(db *gorm.DB, c config.Config) *Worker {
@@ -37,7 +39,12 @@ func (w *Worker) claim() (*models.Task, error) {
 		if e := tx.Model(&models.Task{}).Where("status = ? AND locked_at < ?", "processing", now.Add(-35*time.Minute)).Updates(map[string]any{"status": "pending", "locked_at": nil}).Error; e != nil {
 			return e
 		}
-		if e := tx.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).Where("status = ? AND run_at <= ?", "pending", now).Order("id").First(&task).Error; e != nil {
+		pending := tx.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
+			Where("status = ? AND run_at <= ?", "pending", now)
+		if !engagement.Enabled(w.Config) {
+			pending = pending.Where("kind <> ?", engagement.TaskKind)
+		}
+		if e := pending.Order("id").First(&task).Error; e != nil {
 			return e
 		}
 		task.Status = "processing"
@@ -53,6 +60,12 @@ func (w *Worker) claim() (*models.Task, error) {
 func (w *Worker) Run(ctx context.Context) error {
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
+	defer func() {
+		if w.astra != nil {
+			w.astra.Close()
+			w.astra = nil
+		}
+	}()
 	for {
 		select {
 		case <-ctx.Done():
@@ -74,13 +87,20 @@ func (w *Worker) Run(ctx context.Context) error {
 		jobctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 		e = w.Process(jobctx, *task)
 		cancel()
+		if e == nil && task.Kind == engagement.TaskKind {
+			if err := w.DB.Delete(task).Error; err != nil {
+				return err
+			}
+			continue
+		}
 		updates := map[string]any{"locked_at": nil, "status": "completed", "error": ""}
 		if e != nil {
 			updates["error"] = e.Error()
 			updates["status"] = "failed"
-			if task.Attempts < 3 {
+			if task.Attempts < 3 || task.Kind == engagement.TaskKind {
+				attempt := min(task.Attempts, 6)
 				updates["status"] = "pending"
-				updates["run_at"] = time.Now().Add(time.Duration(task.Attempts*task.Attempts) * time.Minute)
+				updates["run_at"] = time.Now().Add(time.Duration(attempt*attempt) * time.Minute)
 			} else if task.Kind == "transcribe" {
 				var payload struct {
 					VoiceID int64 `json:"voice_id"`
@@ -99,6 +119,20 @@ func (w *Worker) Run(ctx context.Context) error {
 	}
 }
 func (w *Worker) Process(ctx context.Context, t models.Task) error {
+	if t.Kind == engagement.TaskKind {
+		var event engagement.Event
+		if err := json.Unmarshal(t.Payload, &event); err != nil {
+			return err
+		}
+		if w.astra == nil {
+			store, err := engagement.Open(ctx, w.Config)
+			if err != nil {
+				return err
+			}
+			w.astra = store
+		}
+		return w.astra.Record(ctx, t.ID, event)
+	}
 	var p struct {
 		VideoID int64  `json:"video_id"`
 		VoiceID int64  `json:"voice_id"`

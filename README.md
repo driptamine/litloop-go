@@ -24,6 +24,8 @@ API: `http://localhost:8000`. Проверки: `/healthz`, `/readyz`. Спис�
 
 Для PostgreSQL задайте `DATABASE_URL=postgres://user:password@localhost:5432/litloop?sslmode=disable`. Отдельный worker запускается командой `go run ./cmd/worker`. Для обработки видео установите FFmpeg. Сервер и worker должны использовать одну БД, одинаковые `JWT_SECRET`, `PUBLIC_URL` и общий `MEDIA_DIR`.
 
+Для выгрузки новых просмотров, лайков и снятий лайка постов, альбомов и фильмов создайте Astra DB Serverless с keyspace `engagement` и задайте серверу и worker настройки `ASTRA_DB_ID` и `ASTRA_DB_APPLICATION_TOKEN`. Другое имя keyspace можно задать через `ASTRA_DB_KEYSPACE`. Токену нужны разрешения подключения к базе, создания таблицы и записи данных. Worker создаёт CQL-таблицу `events_by_resource_day` при первой выгрузке. Счётчики и состояние лайков хранятся в PostgreSQL.
+
 ```sh
 docker compose up --build
 ```

@@ -1,6 +1,7 @@
 package posts
 
 import (
+	"litloop/backend/internal/engagement"
 	. "litloop/backend/internal/httpapi"
 	"litloop/backend/internal/models"
 	"strconv"
@@ -124,7 +125,8 @@ func (s *Handler) PostLike(q *Request) any {
 			Check(tx.Delete(&like).Error)
 		}
 		Check(tx.Model(&models.PostLike{}).Where("post_id = ?", id).Count(&count).Error)
-		return tx.Model(&p).Update("likes_count", count).Error
+		Check(tx.Model(&p).Update("likes_count", count).Error)
+		return engagement.EnqueueReaction(tx, s.Config, "post", id, q.User.ID, liked)
 	})
 	return map[string]any{"liked": liked, "likes_count": count}
 }

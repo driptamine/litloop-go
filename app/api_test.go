@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"litloop/backend/internal/config"
+	"litloop/backend/internal/engagement"
 	. "litloop/backend/internal/httpapi"
 	"litloop/backend/internal/models"
 	"litloop/backend/internal/testutil"
@@ -138,6 +139,39 @@ func TestPostsOwnershipReactionsAndComments(t *testing.T) {
 		t.Fatal(e, n)
 	}
 }
+
+func TestPostEngagementQueuesViewsAndLikeChanges(t *testing.T) {
+	f := setup(t)
+	f.s.Config.AstraDatabaseID = "test-database"
+	f.s.Config.AstraToken = "test-token"
+	post := f.req("POST", "/posts/create", f.Token, map[string]any{"title": "Engagement"}, 201)
+	id := int64(post["id"].(float64))
+	like := fmt.Sprintf("/posts/%d/like", id)
+	f.req("POST", "/views/up", f.Token, map[string]any{"post_id": id}, 202)
+	f.req("POST", like, f.Token, nil, 200)
+	f.req("POST", like, f.Token, nil, 200)
+	f.req("POST", "/views/up", f.Token, map[string]any{"post_id": id + 1}, 404)
+
+	var tasks []models.Task
+	if err := f.s.DB.Where("kind = ?", engagement.TaskKind).Order("id").Find(&tasks).Error; err != nil {
+		t.Fatal(err)
+	}
+	actions := []string{"view", "like", "unlike"}
+	if len(tasks) != len(actions) {
+		t.Fatalf("got %d engagement tasks, want %d", len(tasks), len(actions))
+	}
+	for i, task := range tasks {
+		var event engagement.Event
+		if err := json.Unmarshal(task.Payload, &event); err != nil {
+			t.Fatal(err)
+		}
+		if event.ResourceType != "post" || event.ResourceID != id || event.ActorID != f.user ||
+			event.Action != actions[i] || event.OccurredAt.IsZero() {
+			t.Fatalf("unexpected engagement event: %+v", event)
+		}
+	}
+}
+
 func TestNotesAndTodoBoundaries(t *testing.T) {
 	f := setup(t)
 	bob, _ := f.second()

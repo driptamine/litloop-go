@@ -1,6 +1,7 @@
 package movies
 
 import (
+	"litloop/backend/internal/engagement"
 	. "litloop/backend/internal/httpapi"
 	"litloop/backend/internal/models"
 	"strings"
@@ -129,7 +130,8 @@ func (s *Handler) MovieLike(q *Request) any {
 			Check(tx.Delete(&l).Error)
 		}
 		Check(tx.Model(&models.MovieLike{}).Where("movie_id = ?", m.ID).Count(&count).Error)
-		return tx.Model(&m).Update("likes_count", count).Error
+		Check(tx.Model(&m).Update("likes_count", count).Error)
+		return engagement.EnqueueReaction(tx, s.Config, "movie", m.ID, q.User.ID, liked)
 	})
 	return map[string]any{"liked": liked, "likes_count": count}
 }
