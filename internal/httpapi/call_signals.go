@@ -25,6 +25,14 @@ func callSignalsKey(callID, userID int64) string {
 
 // SaveCallSignal retains setup signals for the recipient during reconnects.
 func (h *Hub) SaveCallSignal(callID, userID int64, event any) error {
+	return h.saveCallSignal(callSignalsKey(callID, userID), event)
+}
+
+func (h *Hub) SaveGroupVoiceSignal(callID, userID int64, session string, event any) error {
+	return h.saveCallSignal(callSignalsKey(callID, userID)+":"+session, event)
+}
+
+func (h *Hub) saveCallSignal(key string, event any) error {
 	raw, err := json.Marshal(event)
 	if err != nil {
 		return err
@@ -32,7 +40,6 @@ func (h *Hub) SaveCallSignal(callID, userID int64, event any) error {
 	if len(raw) > maxCallSignalBytes {
 		Fail(400, "Call signal is too large")
 	}
-	key := callSignalsKey(callID, userID)
 	if h.bus != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
@@ -65,7 +72,14 @@ func (h *Hub) SaveCallSignal(callID, userID int64, event any) error {
 }
 
 func (h *Hub) CallSignals(callID, userID int64) ([]json.RawMessage, error) {
-	key := callSignalsKey(callID, userID)
+	return h.callSignalEvents(callSignalsKey(callID, userID))
+}
+
+func (h *Hub) GroupVoiceSignals(callID, userID int64, session string) ([]json.RawMessage, error) {
+	return h.callSignalEvents(callSignalsKey(callID, userID) + ":" + session)
+}
+
+func (h *Hub) callSignalEvents(key string) ([]json.RawMessage, error) {
 	if h.bus != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()

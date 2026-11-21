@@ -12,7 +12,7 @@ import (
 
 const httpPresenceLease = 35 * time.Second
 
-var presenceID = regexp.MustCompile(`^[a-zA-Z0-9-]{16,80}$`)
+var sessionIDPattern = regexp.MustCompile(`^[a-zA-Z0-9-]{16,80}$`)
 
 func lastSeen(user models.User) time.Time {
 	at := user.CreatedAt
@@ -97,7 +97,7 @@ func (s *Handler) Presence(q *Request) any {
 		if connected {
 			id = Str(q.Body()["session_id"])
 		}
-		if !presenceID.MatchString(id) {
+		if !sessionIDPattern.MatchString(id) {
 			Fail(400, "Invalid presence session")
 		}
 		s.updatePresence(q.User.ID, "http:"+id, connected, httpPresenceLease)

@@ -124,7 +124,7 @@ func (s *Handler) VoIP(q *Request, b map[string]any) bool {
 		return false
 	}
 
-	calls := s.DB.Where("chat_id = ? AND status IN ?", q.ID("id"), []string{"initiated", "ongoing"})
+	calls := s.DB.Where("chat_id = ? AND status IN ? AND call_type <> ?", q.ID("id"), []string{"initiated", "ongoing"}, groupVoiceType)
 	if b["call_id"] != nil {
 		calls = calls.Where("id = ?", Num(b["call_id"]))
 	}

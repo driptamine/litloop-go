@@ -34,6 +34,7 @@ type Operations struct {
 	Presence              func(q *Request) any
 	CallCommand           func(q *Request) any
 	CallState             func(q *Request) any
+	GroupVoice            func(q *Request) any
 	IncomingCall          func(q *Request) any
 	MessagesAfter         func(q *Request) any
 	Claims                func(raw string, kind string) JWT.MapClaims

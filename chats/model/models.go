@@ -111,6 +111,17 @@ type Call struct {
 
 func (Call) TableName() string { return "chats_call" }
 
+type CallParticipant struct {
+	CallID    int64       `gorm:"column:call_id;primaryKey;autoIncrement:false"`
+	UserID    int64       `gorm:"column:user_id;primaryKey;autoIncrement:false"`
+	SessionID string      `gorm:"column:session_id;size:80;not null"`
+	SeenAt    time.Time   `gorm:"column:seen_at;not null"`
+	Call      *Call       `gorm:"foreignKey:CallID;constraint:OnDelete:CASCADE"`
+	User      *users.User `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
+}
+
+func (CallParticipant) TableName() string { return "chats_call_participant" }
+
 type ChatParticipant struct {
 	ID        int64       `json:"id" gorm:"primaryKey"`
 	ChatID    int64       `json:"chat_id" gorm:"column:chat_id;uniqueIndex:uq_chats_chat_participants;index"`

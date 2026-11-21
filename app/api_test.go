@@ -499,6 +499,66 @@ func TestHTTPPresenceAndLastSeen(t *testing.T) {
 	}
 }
 
+func TestGroupVoiceWithThreeMembers(t *testing.T) {
+	f := setup(t)
+	bob, bid := f.second()
+	third := f.req("POST", "/users/signup", "", map[string]any{
+		"email": "group-voice-third@example.test", "password": "test-password-third",
+	}, 201)
+	carol := third["access"].(string)
+	cid := third["user"].(map[string]any)["id"]
+	created := f.req("POST", "/chats/group/create", f.Token, map[string]any{
+		"name": "Test group voice", "participant_ids": []any{bid, cid},
+	}, 201)
+	chat := created["chat"].(map[string]any)
+	path := fmt.Sprintf("/chats/%.0f/voice", chat["id"])
+	if room := f.req("GET", path, bob, nil, 200)["room"]; room != nil {
+		t.Fatal(room)
+	}
+	const aliceSession = "group-voice-session-alice"
+	const bobSession = "group-voice-session-bobby"
+	const carolSession = "group-voice-session-carol"
+	join := func(token, session string) map[string]any {
+		return f.req("POST", path, token, map[string]any{"action": "join", "session_id": session}, 200)["room"].(map[string]any)
+	}
+	roomID := join(f.Token, aliceSession)["id"]
+	if actual := join(bob, bobSession)["id"]; actual != roomID {
+		t.Fatal(actual)
+	}
+	room := join(carol, carolSession)
+	if room["id"] != roomID || len(room["members"].([]any)) != 3 {
+		t.Fatal(room)
+	}
+	event := map[string]any{
+		"action": "signal", "room_id": roomID, "session_id": bobSession,
+		"target_user_id": cid, "target_session_id": carolSession,
+		"signal_data": map[string]any{"type": "offer", "sdp": "group offer"},
+	}
+	f.req("POST", path, bob, event, 200)
+	poll := func(token, session string) map[string]any {
+		return f.req("POST", path, token, map[string]any{"action": "sync", "room_id": roomID, "session_id": session}, 200)
+	}
+	signals := poll(carol, carolSession)["signals"].([]any)
+	if len(signals) != 1 || signals[0].(map[string]any)["from_session_id"] != bobSession {
+		t.Fatal(signals)
+	}
+	if own := poll(f.Token, aliceSession)["signals"].([]any); len(own) != 0 {
+		t.Fatal(own)
+	}
+	leave := func(token, session string) {
+		f.req("POST", path, token, map[string]any{"action": "leave", "room_id": roomID, "session_id": session}, 200)
+	}
+	leave(f.Token, aliceSession)
+	if members := poll(bob, bobSession)["room"].(map[string]any)["members"].([]any); len(members) != 2 {
+		t.Fatal(members)
+	}
+	leave(bob, bobSession)
+	leave(carol, carolSession)
+	if room := f.req("GET", path, bob, nil, 200)["room"]; room != nil {
+		t.Fatal(room)
+	}
+}
+
 func TestLocalUploadAndPrivateVideo(t *testing.T) {
 	f := setup(t)
 	bob, _ := f.second()

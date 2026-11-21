@@ -11,4 +11,5 @@ type MessageTrack = model.MessageTrack
 type MessageVoice = model.MessageVoice
 type VoiceMessage = model.VoiceMessage
 type Call = model.Call
+type CallParticipant = model.CallParticipant
 type ChatParticipant = model.ChatParticipant

@@ -79,6 +79,7 @@ type MessageTrack = chats.MessageTrack
 type MessageVoice = chats.MessageVoice
 type VoiceMessage = chats.VoiceMessage
 type Call = chats.Call
+type CallParticipant = chats.CallParticipant
 type Community = communities.Community
 type CommunityMembership = communities.CommunityMembership
 type CommunityPost = communities.CommunityPost
@@ -177,6 +178,7 @@ func All() []any {
 		&MessageVoice{},
 		&VoiceMessage{},
 		&Call{},
+		&CallParticipant{},
 		&Community{},
 		&CommunityMembership{},
 		&CommunityPost{},
