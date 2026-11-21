@@ -15,7 +15,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func (s *Handler) MultipartUpload(q *Request) (string, string, string) {
+func (s *Handler) MultipartUpload(q *Request) storage.UploadedFile {
 	q.R.Body = http.MaxBytesReader(q.W, q.R.Body, 64<<20)
 	if e := q.R.ParseMultipartForm(8 << 20); e != nil {
 		Fail(400, "Invalid multipart upload or file exceeds 64 MiB")
@@ -42,9 +42,9 @@ func (s *Handler) MultipartUpload(q *Request) (string, string, string) {
 	defer f.Close()
 	return s.SaveUploadedFile(q, f, head)
 }
-func (s *Handler) SaveUploadedFile(q *Request, f multipart.File, head *multipart.FileHeader) (string, string, string) {
+func (s *Handler) SaveUploadedFile(q *Request, f multipart.File, head *multipart.FileHeader) storage.UploadedFile {
 	filename := filepath.Base(head.Filename)
-	chatUpload := q.R.URL.Path == "/chats/upload" && s.Config.R2Bucket != ""
+	chatUpload := q.R.URL.Path == "/chats/upload" && s.Config.UsesR2ForMedia()
 	prefix := "attachments/"
 	if chatUpload {
 		prefix = storage.ChatAttachmentPrefix(q.User.ID)
@@ -64,7 +64,7 @@ func (s *Handler) SaveUploadedFile(q *Request, f multipart.File, head *multipart
 	_, err := f.Seek(0, io.SeekStart)
 	Check(err)
 	provider := "local"
-	if chatUpload || strings.Contains(q.R.URL.Path, "/r2") {
+	if s.Config.UsesR2ForMedia() || strings.Contains(q.R.URL.Path, "/r2") {
 		provider = "r2"
 	} else if strings.Contains(q.R.URL.Path, "/gcs") {
 		provider = "gcs"
@@ -106,13 +106,14 @@ func (s *Handler) SaveUploadedFile(q *Request, f multipart.File, head *multipart
 		Check(s.DB.Create(&a).Error)
 		uri = strings.TrimRight(s.Config.PublicURL, "/") + "/assets/" + a.ID
 	}
-	return key, uri, filename
+	return storage.UploadedFile{Provider: provider, Key: key, URL: uri, Name: filename}
 }
 func (s *Handler) Attachment(q *Request) any {
 	if strings.HasPrefix(q.R.URL.Path, "/communities/") {
 		s.CommunityRole(s.Community(q), q.User, false)
 	}
-	key, uri, name := s.MultipartUpload(q)
+	file := s.MultipartUpload(q)
+	uri, name := file.URL, file.Name
 	if strings.Contains(q.R.URL.Path, "avatar") {
 		Check(s.DB.Model(q.User).Update("avatar", uri).Error)
 		return map[string]any{"avatar": uri, "user": Get[models.User](s.DB, q.User.ID)}
@@ -138,11 +139,7 @@ func (s *Handler) Attachment(q *Request) any {
 			Fail(400, "Invalid duration")
 		}
 		v := models.VoiceMessage{UserID: Ptr(q.User.ID), Filename: name, Duration: duration, TranscriptionStatus: "not_requested"}
-		if strings.Contains(q.R.URL.Path, "/r2") {
-			v.R2Key = key
-		} else {
-			v.S3Key = key
-		}
+		v.R2Key, v.GCSKey, v.S3Key = file.Keys()
 		Check(s.DB.Create(&v).Error)
 		q.Status = 201
 		return map[string]any{"success": true, "id": v.ID, "url": uri, "duration": duration}

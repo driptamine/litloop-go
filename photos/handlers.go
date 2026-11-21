@@ -41,8 +41,9 @@ func (s *Handler) PhotoAlbum(q *Request) any {
 	a := Get[models.PhotoAlbum](s.DB.Where("user_id = ?", q.User.ID), q.ID("id"))
 	var p models.Photo
 	if strings.HasSuffix(q.R.URL.Path, "/upload") {
-		key, _, name := s.MultipartUpload(q)
-		p = models.Photo{UserID: Ptr(q.User.ID), S3Key: key, Filename: name, Status: "attached", FriendlyToken: Token()[:12]}
+		file := s.MultipartUpload(q)
+		p = models.Photo{UserID: Ptr(q.User.ID), Filename: file.Name, Status: "attached", FriendlyToken: Token()[:12]}
+		p.R2Key, p.GCSKey, p.S3Key = file.Keys()
 		Check(s.DB.Create(&p).Error)
 	} else {
 		p = Get[models.Photo](s.DB.Where("user_id = ?", q.User.ID), Num(q.Body()["photo_id"]))

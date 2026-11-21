@@ -68,6 +68,7 @@ func (s *Handler) Asset(q *Request) any {
 		Check(e)
 	}
 	q.Status = 0
+	q.W.Header().Set("Cache-Control", "private, no-store")
 	http.Redirect(q.W, q.R, uri, http.StatusTemporaryRedirect)
 	return nil
 }

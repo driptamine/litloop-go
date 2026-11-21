@@ -81,7 +81,7 @@ type Operations struct {
 	MovieFeed             func(q *Request) any
 	MovieLike             func(q *Request) any
 	Movies                func(q *Request) any
-	MultipartUpload       func(q *Request) (string, string, string)
+	MultipartUpload       func(q *Request) storage.UploadedFile
 	NativeMedia           func(q *Request) any
 	NativeURL             func(key string) string
 	Notifications         func(q *Request) any
@@ -109,7 +109,7 @@ type Operations struct {
 	Role                  func(q *Request) any
 	SaveLink              func(tx *gorm.DB, u int64, b map[string]any) models.Link
 	SaveMessage           func(chat int64, u models.User, b map[string]any) models.Message
-	SaveUploadedFile      func(q *Request, f multipart.File, head *multipart.FileHeader) (string, string, string)
+	SaveUploadedFile      func(q *Request, f multipart.File, head *multipart.FileHeader) storage.UploadedFile
 	Search                func(q *Request) any
 	SendMessage           func(q *Request) any
 	SignMedia             func(key, exp string) string

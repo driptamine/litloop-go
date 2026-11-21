@@ -13,6 +13,14 @@ func (s *Handler) SignMedia(key, exp string) string { return storage.Signature(s
 func (s *Handler) LocalURL(key string) string       { return storage.LocalURL(s.Config, key) }
 func (s *Handler) MediaURL(r, g, a string) string   { return storage.MediaURL(s.Config, r, g, a) }
 func (s *Handler) UploadProvider(q *Request) string {
+	provider := s.legacyUploadProvider(q)
+	if provider != "native" && s.Config.UsesR2ForMedia() {
+		return "r2"
+	}
+	return provider
+}
+
+func (s *Handler) legacyUploadProvider(q *Request) string {
 	if strings.Contains(q.R.URL.Path, "/r2/") {
 		return "r2"
 	}

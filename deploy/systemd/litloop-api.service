@@ -9,6 +9,7 @@ User=litloop
 Group=litloop
 Environment=CORS_ADDITIONAL_ORIGINS=https://litloop.netlify.app,https://litloop.layero.app
 Environment=GOOGLE_OAUTH_ADDITIONAL_REDIRECT_URIS=https://litloop.layero.app/auth/google/callback
+Environment=REQUIRE_R2_MEDIA=true
 EnvironmentFile=/etc/litloop/litloop.env
 WorkingDirectory=/var/lib/litloop
 StateDirectory=litloop

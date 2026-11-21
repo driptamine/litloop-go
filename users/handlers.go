@@ -33,7 +33,11 @@ func (s *Handler) Signup(q *Request) any {
 	if n > 0 {
 		username += "_" + Token()[:8]
 	}
-	u := models.User{Email: email, Username: username, Password: password, Avatar: Str(b["avatar"]), IsActive: true}
+	avatar := Str(b["avatar"])
+	if avatar != "" && s.Config.UsesR2ForMedia() {
+		Fail(400, "Upload the avatar after creating an account")
+	}
+	u := models.User{Email: email, Username: username, Password: password, Avatar: avatar, IsActive: true}
 	q.Tx(func(tx *gorm.DB) error {
 		if e := tx.Create(&u).Error; e != nil {
 			return e

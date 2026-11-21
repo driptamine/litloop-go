@@ -3,6 +3,7 @@ package media
 import (
 	. "litloop/backend/internal/httpapi"
 	"litloop/backend/internal/models"
+	"strings"
 )
 
 func (s *Handler) MediaJSON(v any) map[string]any {
@@ -32,10 +33,18 @@ func (s *Handler) MediaJSON(v any) map[string]any {
 		}
 	}
 	if key := Str(o["hls_s3"]); key != "" {
-		o["hls_url"] = s.MediaURL("", "", key)
+		if strings.HasPrefix(key, "r2/hls/") {
+			o["hls_url"] = s.LocalURL(key)
+		} else {
+			o["hls_url"] = s.MediaURL("", "", key)
+		}
 	}
 	if key := Str(o["thumbnail"]); key != "" {
-		o["thumbnail_url"] = s.MediaURL(key, "", "")
+		uri := s.MediaURL(strings.TrimPrefix(key, "r2/"), "", "")
+		o["thumbnail_url"] = uri
+		if uri != "" {
+			o["thumbNail"] = uri
+		}
 	}
 	return o
 }

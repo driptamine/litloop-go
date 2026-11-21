@@ -22,6 +22,9 @@ func New(c config.Config, provider string) (*Store, error) {
 	switch provider {
 	case "r2":
 		endpoint, bucket, access, secret, region = c.R2Endpoint, c.R2Bucket, c.R2AccessKey, c.R2SecretKey, "auto"
+		if endpoint == "" {
+			return nil, fmt.Errorf("r2 endpoint is not configured")
+		}
 	case "gcs":
 		endpoint, bucket, access, secret, region = "https://storage.googleapis.com", c.GCSBucket, c.GCSAccessKey, c.GCSSecretKey, "auto"
 	}

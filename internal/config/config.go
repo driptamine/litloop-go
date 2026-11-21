@@ -18,6 +18,7 @@ type Config struct {
 	AccessTTL, RefreshTTL                                                                                   time.Duration
 	S3Endpoint, S3Region, S3Bucket, S3AccessKey, S3SecretKey, S3PublicURL                                   string
 	R2Endpoint, R2Bucket, R2AccessKey, R2SecretKey, R2PublicURL                                             string
+	RequireR2Media                                                                                          bool
 	GCSBucket, GCSAccessKey, GCSSecretKey, GoogleCredentials                                                string
 	GoogleClientID, VKClientID, VKClientSecret                                                              string
 	GoogleAdditionalRedirectURIs                                                                            []string
@@ -60,7 +61,8 @@ func Load() Config {
 		MediaDir: env("MEDIA_DIR", "var/media"), PublicURL: env("PUBLIC_URL", "http://localhost:8000"), AutoMigrate: env("AUTO_MIGRATE", "false") == "true", Origins: origins, AccessTTL: hours("ACCESS_TTL_HOURS", 1), RefreshTTL: hours("REFRESH_TTL_HOURS", 720),
 		S3Endpoint: os.Getenv("S3_ENDPOINT"), S3Region: env("S3_REGION", "us-east-1"), S3Bucket: os.Getenv("S3_BUCKET"), S3AccessKey: os.Getenv("AWS_ACCESS_KEY_ID"), S3SecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"), S3PublicURL: os.Getenv("S3_PUBLIC_URL"),
 		R2Endpoint: os.Getenv("R2_ENDPOINT"), R2Bucket: os.Getenv("R2_BUCKET_NAME"), R2AccessKey: os.Getenv("R2_ACCESS_KEY_ID"), R2SecretKey: os.Getenv("R2_SECRET_ACCESS_KEY"), R2PublicURL: os.Getenv("R2_PUBLIC_URL"),
-		GCSBucket: os.Getenv("GCS_BUCKET_NAME"), GCSAccessKey: os.Getenv("GCS_ACCESS_KEY_ID"), GCSSecretKey: os.Getenv("GCS_SECRET_ACCESS_KEY"), GoogleCredentials: os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"), GoogleClientID: os.Getenv("GOOGLE_CLIENT_ID"), VKClientID: os.Getenv("VK_CLIENT_ID"), VKClientSecret: os.Getenv("VK_CLIENT_SECRET"),
+		RequireR2Media: env("REQUIRE_R2_MEDIA", "false") == "true",
+		GCSBucket:      os.Getenv("GCS_BUCKET_NAME"), GCSAccessKey: os.Getenv("GCS_ACCESS_KEY_ID"), GCSSecretKey: os.Getenv("GCS_SECRET_ACCESS_KEY"), GoogleCredentials: os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"), GoogleClientID: os.Getenv("GOOGLE_CLIENT_ID"), VKClientID: os.Getenv("VK_CLIENT_ID"), VKClientSecret: os.Getenv("VK_CLIENT_SECRET"),
 		GoogleAdditionalRedirectURIs: strings.FieldsFunc(os.Getenv("GOOGLE_OAUTH_ADDITIONAL_REDIRECT_URIS"), func(r rune) bool { return r == ',' || r == ' ' }),
 		GeminiKey:                    os.Getenv("GEMINI_API_KEY"), GeminiModel: env("GEMINI_MODEL", "gemini-2.5-flash"), BraveKey: os.Getenv("BRAVE_API_KEY"), BingKey: os.Getenv("BING_API_KEY"), GoogleSearchKey: os.Getenv("GOOGLE_SEARCH_API_KEY"), GoogleSearchCX: os.Getenv("GOOGLE_SEARCH_CX"), TMDBKey: os.Getenv("TMDB_API_KEY"),
 		SMTPAddr: os.Getenv("SMTP_ADDR"), SMTPUser: os.Getenv("SMTP_USER"), SMTPPassword: os.Getenv("SMTP_PASSWORD"), SMTPFrom: os.Getenv("SMTP_FROM"), FrontendURL: env("FRONTEND_URL", "http://localhost:3000"), TranscriptionURL: os.Getenv("TRANSCRIPTION_URL"), TranscriptionSecret: os.Getenv("TRANSCRIPTION_SECRET"), SpotURL: os.Getenv("SPOT_LAUNCH_URL"),
@@ -68,3 +70,5 @@ func Load() Config {
 		AstraDatabaseID: os.Getenv("ASTRA_DB_ID"), AstraToken: os.Getenv("ASTRA_DB_APPLICATION_TOKEN"), AstraKeyspace: env("ASTRA_DB_KEYSPACE", "engagement"),
 	}
 }
+
+func (c Config) UsesR2ForMedia() bool { return c.RequireR2Media || c.R2Bucket != "" }

@@ -35,6 +35,9 @@ func (s *Handler) UploadInitiate(q *Request) any {
 		typ = "application/octet-stream"
 	}
 	provider := s.UploadProvider(q)
+	if provider == "native" && s.Config.UsesR2ForMedia() {
+		Fail(410, "Use the R2 multipart upload endpoints")
+	}
 	u := models.Upload{ID: Token(), UserID: q.User.ID, Provider: provider, Kind: kind, Key: kind + "/" + Token() + filepath.Ext(filename), ContentType: typ, Filename: filename, Status: "pending"}
 	out := map[string]any{}
 	if provider == "native" {
@@ -77,7 +80,7 @@ func (s *Handler) PendingUpload(q *Request) models.Upload {
 		Fail(400, "upload_id is required")
 	}
 	Check(s.DB.First(&u, "id = ? AND user_id = ?", id, q.User.ID).Error)
-	if u.Provider != s.UploadProvider(q) {
+	if u.Kind != strings.Split(strings.TrimPrefix(q.R.URL.Path, "/"), "/")[0] || (u.Provider != s.UploadProvider(q) && u.Provider != s.legacyUploadProvider(q)) {
 		Fail(400, "Provider mismatch")
 	}
 	if u.Status != "pending" {

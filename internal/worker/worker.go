@@ -3,6 +3,7 @@ package worker
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -257,6 +258,9 @@ func (w *Worker) encode(ctx context.Context, id int64) error {
 	}
 	rel := fmt.Sprintf("hls/%d", id)
 	output := filepath.Join(w.Config.MediaDir, rel)
+	if w.Config.UsesR2ForMedia() {
+		output = filepath.Join(tmp, "hls")
+	}
 	if e = os.MkdirAll(output, 0755); e != nil {
 		return e
 	}
@@ -271,7 +275,15 @@ func (w *Worker) encode(ctx context.Context, id int64) error {
 	if out, e := cmd.CombinedOutput(); e != nil {
 		return fmt.Errorf("thumbnail: %w: %s", e, tail(out))
 	}
-	return w.DB.Model(&video).Updates(map[string]any{"hls_s3": "local/" + rel + "/index.m3u8", "thumbnail": "local/" + rel + "/thumbnail.jpg"}).Error
+	location := "local/" + rel
+	if w.Config.UsesR2ForMedia() {
+		rel += "/" + rand.Text()
+		if e := w.uploadHLS(ctx, output, rel); e != nil {
+			return e
+		}
+		location = "r2/" + rel
+	}
+	return w.DB.Model(&video).Updates(map[string]any{"hls_s3": location + "/index.m3u8", "thumbnail": location + "/thumbnail.jpg"}).Error
 }
 func tail(b []byte) string {
 	if len(b) > 2000 {
