@@ -152,3 +152,72 @@ func assertAttachmentBody(t *testing.T, url string, expected []byte) {
 		t.Fatalf("attachment response status %d: %v", response.StatusCode, err)
 	}
 }
+
+func TestChatLibraryR2Attachments(t *testing.T) {
+	f := setup(t)
+	bob, bobID := f.second()
+	chat := f.req("GET", fmt.Sprintf("/chats/direct/%d", bobID), f.Token, nil, 200)
+	chatID := int64(chat["id"].(float64))
+	messagesPath := fmt.Sprintf("/chats/%d/messages", chatID)
+	sendPath := fmt.Sprintf("/chats/%d/send", chatID)
+	f.s.Config.R2Endpoint, f.s.Config.R2Bucket = "https://r2.example", "private"
+	f.s.Config.R2AccessKey, f.s.Config.R2SecretKey = "test-access", "test-secret"
+
+	const photoKey = "photos/old.png-1795288952802"
+	const videoKey = "videos/old.mp4"
+	const trackKey = "tracks/old.mp3"
+	for _, media := range []any{
+		&models.Photo{UserID: &f.user, R2Key: photoKey},
+		&models.Video{UserID: &f.user, R2Key: videoKey},
+		&models.Track{UserID: &f.user, R2Key: trackKey},
+	} {
+		if err := f.s.DB.Create(media).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	link := func(key string) string {
+		return "https://r2.example/private/" + key + "?X-Amz-Date=20210101T000000Z&X-Amz-Signature=old"
+	}
+	legacyAttachments := []any{
+		map[string]any{"url": link(photoKey), "type": "photo"},
+		map[string]any{"url": link(videoKey), "type": "video"},
+		map[string]any{"url": link(trackKey), "type": "track"},
+		map[string]any{"url": strings.Replace(link(photoKey), "r2.example", "unrelated.example", 1), "type": "photo"},
+	}
+	for _, sender := range []int64{f.user, bobID} {
+		message := models.Message{ChatID: &chatID, UserID: &sender, Attachments: models.AsJSON(legacyAttachments)}
+		if err := f.s.DB.Create(&message).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	newMessage := f.req("POST", sendPath, f.Token, map[string]any{"attachments": legacyAttachments}, 200)["message"].(map[string]any)
+	var stored models.Message
+	if err := f.s.DB.First(&stored, int64(newMessage["id"].(float64))).Error; err != nil {
+		t.Fatal(err)
+	}
+	var persisted []map[string]any
+	if err := json.Unmarshal(stored.Attachments, &persisted); err != nil {
+		t.Fatal(err)
+	}
+	results := f.req("GET", messagesPath, bob, nil, 200)["messages"].([]any)
+	for i, key := range []string{photoKey, videoKey, trackKey} {
+		if persisted[i]["r2_key"] != key || persisted[i]["url"] != nil {
+			t.Fatal("expected a stored R2 key without the temporary URL")
+		}
+		for _, index := range []int{0, 2} {
+			attachment := results[index].(map[string]any)["attachments"].([]any)[i].(map[string]any)
+			fresh, err := url.Parse(attachment["url"].(string))
+			if err != nil || fresh.Path != "/private/"+key || fresh.Query().Get("X-Amz-Signature") == "" || fresh.Query().Get("X-Amz-Signature") == "old" {
+				t.Fatal("expected a freshly signed catalog media URL")
+			}
+		}
+		otherSender := results[1].(map[string]any)["attachments"].([]any)[i].(map[string]any)
+		if otherSender["url"] != link(key) {
+			t.Fatal("another sender's media link should not be renewed")
+		}
+	}
+	external := results[0].(map[string]any)["attachments"].([]any)[3].(map[string]any)
+	if external["url"] != legacyAttachments[3].(map[string]any)["url"] {
+		t.Fatal("external URL changed")
+	}
+}

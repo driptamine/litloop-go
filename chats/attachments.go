@@ -19,9 +19,29 @@ func chatAttachmentFilename(name string) bool {
 	return err == nil
 }
 
-func ownsR2Attachment(userID int64, key string) bool {
+func (s *Handler) ownsR2Attachment(userID int64, kind, key string) bool {
 	name, found := strings.CutPrefix(key, storage.ChatAttachmentPrefix(userID))
-	return found && chatAttachmentFilename(name)
+	if found {
+		return chatAttachmentFilename(name)
+	}
+	if key == "" {
+		return false
+	}
+
+	var media any
+	switch kind {
+	case "photo":
+		media = &models.Photo{}
+	case "video":
+		media = &models.Video{}
+	case "track":
+		media = &models.Track{}
+	default:
+		return false
+	}
+	var id int64
+	err := s.DB.Model(media).Select("id").Where("user_id = ? AND r2_key = ?", userID, key).Limit(1).Scan(&id).Error
+	return err == nil && id != 0
 }
 
 func (s *Handler) storeAttachmentKeys(attachments []any, userID int64) {
@@ -31,14 +51,15 @@ func (s *Handler) storeAttachmentKeys(attachments []any, userID int64) {
 			continue
 		}
 		delete(attachment, "r2_key")
-		if key := s.uploadedR2AttachmentKey(Str(attachment["url"]), userID); key != "" {
+		key := s.r2AttachmentKey(Str(attachment["url"]))
+		if s.ownsR2Attachment(userID, Str(attachment["type"]), key) {
 			delete(attachment, "url")
 			attachment["r2_key"] = key
 		}
 	}
 }
 
-func (s *Handler) uploadedR2AttachmentKey(rawURL string, userID int64) string {
+func (s *Handler) r2AttachmentKey(rawURL string) string {
 	if s.Config.R2Bucket == "" || s.Config.R2Endpoint == "" {
 		return ""
 	}
@@ -52,7 +73,7 @@ func (s *Handler) uploadedR2AttachmentKey(rawURL string, userID int64) string {
 	}
 	bucketPath := strings.TrimRight(endpoint.Path, "/") + "/" + s.Config.R2Bucket + "/"
 	key, found := strings.CutPrefix(u.Path, bucketPath)
-	if !found || !ownsR2Attachment(userID, key) {
+	if !found {
 		return ""
 	}
 	return key
@@ -66,7 +87,11 @@ func (s *Handler) setAttachmentURLs(attachments []any, message models.Message) {
 		}
 		key := Str(attachment["r2_key"])
 		delete(attachment, "r2_key")
-		if message.UserID != nil && ownsR2Attachment(*message.UserID, key) {
+		if key == "" {
+			// Messages created before keys were stored can contain a signed R2 URL.
+			key = s.r2AttachmentKey(Str(attachment["url"]))
+		}
+		if message.UserID != nil && s.ownsR2Attachment(*message.UserID, Str(attachment["type"]), key) {
 			attachment["url"] = storage.PresignedURL(s.Config, "r2", key)
 			continue
 		}
