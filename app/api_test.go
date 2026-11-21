@@ -316,6 +316,67 @@ func TestCallNotificationsOutsideChat(t *testing.T) {
 	}
 }
 
+func TestRealtimeDeliveryAndPresenceAcrossSessions(t *testing.T) {
+	f := setup(t)
+	bob, bid := f.second()
+	chat := f.req("GET", fmt.Sprintf("/chats/direct/%d", bid), f.Token, nil, 200)
+	chatID := int64(chat["id"].(float64))
+	read := func(conn *Websocket.Conn, eventType string) map[string]any {
+		t.Helper()
+		_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+		for {
+			var event map[string]any
+			if err := conn.ReadJSON(&event); err != nil {
+				t.Fatalf("waiting for %s: %v", eventType, err)
+			}
+			if event["type"] == eventType {
+				return event
+			}
+		}
+	}
+	notifications := func(token string) (*Websocket.Conn, map[string]any) {
+		t.Helper()
+		conn, _, err := Websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(f.http.URL, "http")+"/ws/notifications/", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { conn.Close() })
+		if err := conn.WriteJSON(map[string]any{"type": "auth", "token": token}); err != nil {
+			t.Fatal(err)
+		}
+		return conn, read(conn, "presence_snapshot")
+	}
+
+	alice, snapshot := notifications(f.Token)
+	bobKey := fmt.Sprint(bid)
+	if snapshot["users"].(map[string]any)[bobKey] != false {
+		t.Fatal(snapshot)
+	}
+	bobFirst, _ := notifications(bob)
+	if event := read(alice, "presence_update"); event["user_id"] != float64(bid) || event["online"] != true {
+		t.Fatal(event)
+	}
+	bobSecond, _ := notifications(bob)
+	f.req("POST", fmt.Sprintf("/chats/%d/send", chatID), f.Token, map[string]any{"text": "Delivered outside the room"}, 200)
+	event := read(bobSecond, "new_message")
+	if event["chat_id"] != chat["id"] || event["message"].(map[string]any)["text"] != "Delivered outside the room" {
+		t.Fatal(event)
+	}
+
+	bobFirst.Close()
+	if err := alice.WriteJSON(map[string]any{"type": "presence"}); err != nil {
+		t.Fatal(err)
+	}
+	snapshot = read(alice, "presence_snapshot")
+	if snapshot["users"].(map[string]any)[bobKey] != true {
+		t.Fatal(snapshot)
+	}
+	bobSecond.Close()
+	if event := read(alice, "presence_update"); event["user_id"] != float64(bid) || event["online"] != false {
+		t.Fatal(event)
+	}
+}
+
 func TestLocalUploadAndPrivateVideo(t *testing.T) {
 	f := setup(t)
 	bob, _ := f.second()

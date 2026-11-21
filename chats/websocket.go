@@ -1,6 +1,7 @@
 package chats
 
 import (
+	"crypto/rand"
 	"fmt"
 	. "litloop/backend/internal/httpapi"
 	"litloop/backend/internal/models"
@@ -15,10 +16,16 @@ import (
 func (s *Handler) Websocket(q *Request) any {
 	Notifications := q.Param("id") == ""
 	room := ""
+	var notificationUser int64
+	var presenceSession string
+	if Notifications {
+		presenceSession = rand.Text()
+	}
 	if !Notifications {
 		s.ChatAccess(q, q.ID("id"))
 		room = fmt.Sprint(q.ID("id"))
 	} else if q.User != nil {
+		notificationUser = q.User.ID
 		room = "user:" + fmt.Sprint(q.User.ID)
 	}
 	up := Websocket.Upgrader{CheckOrigin: func(r *http.Request) bool {
@@ -45,13 +52,28 @@ func (s *Handler) Websocket(q *Request) any {
 		if room != "" {
 			s.Hub.Remove(room, p)
 		}
+		if notificationUser != 0 {
+			s.updatePresence(notificationUser, presenceSession, false)
+		}
 	}()
 	if room != "" {
 		s.Hub.Add(room, p)
 	}
+	if notificationUser != 0 {
+		s.updatePresence(notificationUser, presenceSession, true)
+	}
 	Conn.SetReadLimit(1 << 20)
 	_ = Conn.SetReadDeadline(time.Now().Add(70 * time.Second))
-	Conn.SetPongHandler(func(string) error { return Conn.SetReadDeadline(time.Now().Add(70 * time.Second)) })
+	Conn.SetPongHandler(func(string) error {
+		if err := Conn.SetReadDeadline(time.Now().Add(70 * time.Second)); err != nil {
+			return err
+		}
+		if notificationUser != 0 {
+			s.updatePresence(notificationUser, presenceSession, true)
+			s.sendPresence(p, notificationUser)
+		}
+		return nil
+	})
 	go func() {
 		tick := time.NewTicker(25 * time.Second)
 		defer tick.Stop()
@@ -91,7 +113,8 @@ func (s *Handler) Websocket(q *Request) any {
 				}
 			}()
 			if Notifications {
-				if Str(b["type"]) == "auth" {
+				switch Str(b["type"]) {
+				case "auth":
 					c := s.Claims(Str(b["token"]), "access")
 					if c == nil {
 						Fail(401, "Invalid token")
@@ -100,13 +123,23 @@ func (s *Handler) Websocket(q *Request) any {
 					if !u.IsActive {
 						Fail(401, "Inactive user")
 					}
-					if room != "" {
-						s.Hub.Remove(room, p)
+					if notificationUser != u.ID {
+						if room != "" {
+							s.Hub.Remove(room, p)
+							s.updatePresence(notificationUser, presenceSession, false)
+						}
+						notificationUser = u.ID
+						room = "user:" + strconv.FormatInt(u.ID, 10)
+						s.Hub.Add(room, p)
+						s.updatePresence(u.ID, presenceSession, true)
 					}
-					room = "user:" + strconv.FormatInt(u.ID, 10)
-					s.Hub.Add(room, p)
 					p.Send <- map[string]any{"type": "auth_ok"}
 					p.Send <- map[string]any{"type": "unread_update", "unread_count": s.UnreadMessages(u.ID)}
+					s.sendPresence(p, u.ID)
+				case "presence":
+					if notificationUser != 0 {
+						s.sendPresence(p, notificationUser)
+					}
 				}
 				return
 			}

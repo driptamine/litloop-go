@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func (s *Handler) Member(chat, user int64) bool {
@@ -58,25 +59,33 @@ func (s *Handler) SaveMessage(chat int64, u models.User, b map[string]any) model
 		Fail(400, "Message is empty")
 	}
 	m := models.Message{ChatID: Ptr(chat), UserID: Ptr(u.ID), Text: text, Attachments: models.AsJSON(attachments)}
+	var recipients []models.ChatParticipant
 	Check(s.DB.Transaction(func(tx *gorm.DB) error {
+		// Keep the message ID cursor in commit order within this conversation.
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select("id").First(&models.Chat{}, chat).Error; err != nil {
+			return err
+		}
 		Check(tx.Create(&m).Error)
 		if voiceID > 0 {
 			Check(tx.Create(&models.MessageVoice{MessageID: Ptr(m.ID), VoiceMessageID: Ptr(voiceID)}).Error)
 		}
-		for _, p := range All[models.ChatParticipant](tx.Where("chat_id = ? AND user_id <> ?", chat, u.ID)) {
+		recipients = All[models.ChatParticipant](tx.Where("chat_id = ? AND user_id <> ?", chat, u.ID))
+		for _, p := range recipients {
 			Check(tx.Create(&models.Notification{FromUserID: u.ID, ToUserID: p.UserID, TargetObjectID: Ptr(m.ID)}).Error)
 		}
 		return nil
 	}))
 	message := s.MessageJSON(m)
-	for _, p := range All[models.ChatParticipant](s.DB.Where("chat_id = ? AND user_id <> ?", chat, u.ID)) {
+	s.Hub.Broadcast(fmt.Sprint(chat), map[string]any{"type": "new_message", "message": message})
+	for _, p := range recipients {
 		s.Hub.Broadcast("user:"+fmt.Sprint(p.UserID), map[string]any{
 			"type": "new_message", "chat_id": chat, "chat_user_id": u.ID, "message_id": m.ID,
 			"sender": u.Username, "preview": Truncate(text, 50), "text": Truncate(text, 50),
-			"created_at": m.CreatedAt, "unread_count": s.UnreadMessages(p.UserID),
+			"created_at": m.CreatedAt, "unread_count": s.UnreadMessages(p.UserID), "message": message,
 		})
 	}
-	s.Hub.Broadcast(fmt.Sprint(chat), map[string]any{"type": "new_message", "message": message})
-	s.Hub.Broadcast("user:"+fmt.Sprint(u.ID), map[string]any{"type": "chat_updated", "chat_id": chat})
+	s.Hub.Broadcast("user:"+fmt.Sprint(u.ID), map[string]any{
+		"type": "chat_updated", "chat_id": chat, "message": message,
+	})
 	return m
 }
