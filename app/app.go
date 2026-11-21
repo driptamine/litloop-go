@@ -74,6 +74,7 @@ func New(db *gorm.DB, c config.Config) *httpapi.Server {
 	s.ChatAction = chatsHandler.ChatAction
 	s.ChatJSON = chatsHandler.ChatJSON
 	s.ChatList = chatsHandler.ChatList
+	s.Presence = chatsHandler.Presence
 	s.CallCommand = chatsHandler.CallCommand
 	s.CallState = chatsHandler.CallState
 	s.IncomingCall = chatsHandler.IncomingCall

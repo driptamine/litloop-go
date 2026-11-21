@@ -17,6 +17,7 @@ type User struct {
 	UpdatedAt   time.Time  `json:"updated_at"  gorm:"column:updated_at;autoUpdateTime"`
 	Password    string     `json:"-"    gorm:"column:password;size:128"`
 	LastLogin   *time.Time `json:"last_login"  gorm:"column:last_login"`
+	LastSeenAt  *time.Time `json:"-" gorm:"column:last_seen_at"`
 	IsSuperuser bool       `json:"is_superuser" gorm:"column:is_superuser;default:false"`
 }
 

@@ -8,6 +8,7 @@ import (
 func Register(s *Server) {
 	s.Route("GET", "/chats", true, s.ChatList)
 	s.Route("GET", "/chats/me", true, s.ChatList)
+	s.Route("GET,POST,DELETE", "/chats/presence", true, s.Presence)
 	s.Route("GET", "/chats/direct", true, s.ChatList)
 	s.Route("GET", "/chats/group", true, s.ChatList)
 	s.Route("GET,POST", "/chats/direct/{user:[0-9]+}", true, s.DirectChat)

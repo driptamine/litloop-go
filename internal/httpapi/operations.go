@@ -31,6 +31,7 @@ type Operations struct {
 	ChatAction            func(q *Request) any
 	ChatJSON              func(c models.Chat, user int64, detail bool) map[string]any
 	ChatList              func(q *Request) any
+	Presence              func(q *Request) any
 	CallCommand           func(q *Request) any
 	CallState             func(q *Request) any
 	IncomingCall          func(q *Request) any

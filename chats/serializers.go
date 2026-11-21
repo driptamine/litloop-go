@@ -42,6 +42,9 @@ func (s *Handler) ChatJSON(c models.Chat, user int64, detail bool) map[string]an
 		if u.ID != user {
 			o["other_participant"] = p
 			if c.ChatType == "direct" {
+				if at := lastSeen(u); !at.IsZero() {
+					p["last_seen_at"] = at
+				}
 				o["username"] = u.Username
 				o["avatar"] = u.Avatar
 				if detail {

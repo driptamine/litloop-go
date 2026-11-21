@@ -461,6 +461,44 @@ func TestRealtimeDeliveryAndPresenceAcrossSessions(t *testing.T) {
 	}
 }
 
+func TestHTTPPresenceAndLastSeen(t *testing.T) {
+	f := setup(t)
+	bob, bid := f.second()
+	bobKey := fmt.Sprint(bid)
+	const path = "/chats/presence"
+	if users := f.req("GET", path, f.Token, nil, 200)["users"].(map[string]any); len(users) != 0 {
+		t.Fatal(users)
+	}
+	direct := fmt.Sprintf("/chats/direct/%d", bid)
+	chat := f.req("GET", direct, f.Token, nil, 200)
+	before := chat["other_participant"].(map[string]any)["last_seen_at"].(string)
+	started, err := time.Parse(time.RFC3339Nano, before)
+	if err != nil {
+		t.Fatal(err)
+	}
+	offline := f.req("GET", path, f.Token, nil, 200)
+	if offline["users"].(map[string]any)[bobKey] != false || offline["last_seen_at"].(map[string]any)[bobKey] != before {
+		t.Fatal(offline)
+	}
+
+	const session = "test-http-presence-session"
+	f.req("POST", path, bob, map[string]any{"session_id": session}, 200)
+	if online := f.req("GET", path, f.Token, nil, 200)["users"].(map[string]any)[bobKey]; online != true {
+		t.Fatal(online)
+	}
+	f.req("DELETE", path+"?session_id="+session, bob, nil, 200)
+	offline = f.req("GET", path, f.Token, nil, 200)
+	stamp := offline["last_seen_at"].(map[string]any)[bobKey].(string)
+	lastSeen, err := time.Parse(time.RFC3339Nano, stamp)
+	if err != nil || !lastSeen.After(started) || offline["users"].(map[string]any)[bobKey] != false {
+		t.Fatal(offline)
+	}
+	chat = f.req("GET", direct, f.Token, nil, 200)
+	if actual := chat["other_participant"].(map[string]any)["last_seen_at"]; actual != stamp {
+		t.Fatalf("chat last seen = %v, want %s", actual, stamp)
+	}
+}
+
 func TestLocalUploadAndPrivateVideo(t *testing.T) {
 	f := setup(t)
 	bob, _ := f.second()

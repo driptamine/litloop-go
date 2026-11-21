@@ -53,14 +53,14 @@ func (s *Handler) Websocket(q *Request) any {
 			s.Hub.Remove(room, p)
 		}
 		if notificationUser != 0 {
-			s.updatePresence(notificationUser, presenceSession, false)
+			s.updatePresence(notificationUser, presenceSession, false, 0)
 		}
 	}()
 	if room != "" {
 		s.Hub.Add(room, p)
 	}
 	if notificationUser != 0 {
-		s.updatePresence(notificationUser, presenceSession, true)
+		s.updatePresence(notificationUser, presenceSession, true, 0)
 	}
 	Conn.SetReadLimit(1 << 20)
 	_ = Conn.SetReadDeadline(time.Now().Add(70 * time.Second))
@@ -69,7 +69,7 @@ func (s *Handler) Websocket(q *Request) any {
 			return err
 		}
 		if notificationUser != 0 {
-			s.updatePresence(notificationUser, presenceSession, true)
+			s.updatePresence(notificationUser, presenceSession, true, 0)
 			s.sendPresence(p, notificationUser)
 		}
 		return nil
@@ -126,12 +126,12 @@ func (s *Handler) Websocket(q *Request) any {
 					if notificationUser != u.ID {
 						if room != "" {
 							s.Hub.Remove(room, p)
-							s.updatePresence(notificationUser, presenceSession, false)
+							s.updatePresence(notificationUser, presenceSession, false, 0)
 						}
 						notificationUser = u.ID
 						room = "user:" + strconv.FormatInt(u.ID, 10)
 						s.Hub.Add(room, p)
-						s.updatePresence(u.ID, presenceSession, true)
+						s.updatePresence(u.ID, presenceSession, true, 0)
 					}
 					p.Send <- map[string]any{"type": "auth_ok"}
 					p.Send <- map[string]any{"type": "unread_update", "unread_count": s.UnreadMessages(u.ID)}
