@@ -31,6 +31,7 @@ type Operations struct {
 	ChatAction            func(q *Request) any
 	ChatJSON              func(c models.Chat, user int64, detail bool) map[string]any
 	ChatList              func(q *Request) any
+	MessagesAfter         func(q *Request) any
 	Claims                func(raw string, kind string) JWT.MapClaims
 	CommentCreate         func(q *Request) any
 	CommentJSON           func(c models.Comment) map[string]any
@@ -134,7 +135,7 @@ type Operations struct {
 	VideoAccess           func(q *Request, id int64) models.Video
 	View                  func(q *Request) any
 	VoiceJSON             func(v models.VoiceMessage) any
-	VoIP                  func(q *Request, b map[string]any)
+	VoIP                  func(q *Request, b map[string]any) bool
 	Watchlist             func(q *Request) any
 	WatchlistFor          func(q *Request, uid int64, ratings bool) any
 	Websocket             func(q *Request) any

@@ -119,10 +119,11 @@ func (s *Handler) Websocket(q *Request) any {
 			} else if typ == "typing" {
 				s.Hub.Broadcast(room, map[string]any{"type": "typing", "user_id": q.User.ID, "username": q.User.Username, "is_typing": b["is_typing"]})
 			} else if strings.HasPrefix(typ, "voip_") {
-				s.VoIP(q, b)
-				b["from_user_id"] = q.User.ID
-				b["username"] = q.User.Username
-				s.Hub.Broadcast(room, b)
+				if s.VoIP(q, b) {
+					b["from_user_id"] = q.User.ID
+					b["username"] = q.User.Username
+					s.Hub.Broadcast(room, b)
+				}
 			}
 		}()
 	}

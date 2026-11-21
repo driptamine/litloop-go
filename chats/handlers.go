@@ -23,6 +23,25 @@ func (s *Handler) ChatList(q *Request) any {
 	}
 	return map[string]any{"chats": out}
 }
+
+func (s *Handler) MessagesAfter(q *Request) any {
+	chat := s.ChatAccess(q, q.ID("id"))
+	var after int64
+	if value := q.R.URL.Query().Get("after"); value != "" {
+		after = Num(value)
+	}
+	const pageSize = 200
+	rows := All[models.Message](s.DB.Where("chat_id = ? AND id > ?", chat.ID, after).Order("id ASC").Limit(pageSize + 1))
+	hasMore := len(rows) > pageSize
+	if hasMore {
+		rows = rows[:pageSize]
+	}
+	messages := make([]map[string]any, 0, len(rows))
+	for _, message := range rows {
+		messages = append(messages, s.MessageJSON(message))
+	}
+	return map[string]any{"messages": messages, "has_more": hasMore}
+}
 func (s *Handler) DirectChat(q *Request) any {
 	saved := strings.HasSuffix(q.R.URL.Path, "/saved")
 	target := q.User.ID
@@ -122,7 +141,9 @@ func (s *Handler) ChatAction(q *Request) any {
 		}
 		s.Hub.Broadcast(fmt.Sprint(c.ID), map[string]any{"type": "read_receipt", "read_by": q.User.ID, "message_ids": ids})
 	}
-	s.Hub.Broadcast("user:"+fmt.Sprint(q.User.ID), map[string]any{"type": "unread_update", "unread_count": s.UnreadMessages(q.User.ID)})
+	s.Hub.Broadcast("user:"+fmt.Sprint(q.User.ID), map[string]any{
+		"type": "unread_update", "chat_id": c.ID, "unread_count": s.UnreadMessages(q.User.ID),
+	})
 	return map[string]any{"status": "success", "chat_id": c.ID}
 }
 func (s *Handler) SendMessage(q *Request) any {

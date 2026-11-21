@@ -77,5 +77,6 @@ func (s *Handler) SaveMessage(chat int64, u models.User, b map[string]any) model
 		})
 	}
 	s.Hub.Broadcast(fmt.Sprint(chat), map[string]any{"type": "new_message", "message": message})
+	s.Hub.Broadcast("user:"+fmt.Sprint(u.ID), map[string]any{"type": "chat_updated", "chat_id": chat})
 	return m
 }

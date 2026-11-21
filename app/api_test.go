@@ -252,6 +252,11 @@ func TestChatsWebsocketAndMembership(t *testing.T) {
 	if len(c["messages"].([]any)) != 2 {
 		t.Fatal(c)
 	}
+	missed := f.req("GET", fmt.Sprintf("/chats/%d/messages?after=%.0f", id, firstMessageID), bob, nil, 200)
+	messages := missed["messages"].([]any)
+	if len(messages) != 1 || messages[0].(map[string]any)["text"] != "Hi Alice" || missed["has_more"] != false {
+		t.Fatal(missed)
+	}
 	f.req("POST", fmt.Sprintf("/chats/%d/read", id), bob, map[string]any{}, 200)
 	if e = ws.ReadJSON(&event); e != nil {
 		t.Fatal(e)
@@ -260,6 +265,57 @@ func TestChatsWebsocketAndMembership(t *testing.T) {
 		t.Fatal(event)
 	}
 }
+
+func TestCallNotificationsOutsideChat(t *testing.T) {
+	f := setup(t)
+	bob, bid := f.second()
+	chat := f.req("GET", fmt.Sprintf("/chats/direct/%d", bid), f.Token, nil, 200)
+	id := int64(chat["id"].(float64))
+	connect := func(path string) *Websocket.Conn {
+		t.Helper()
+		conn, _, err := Websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(f.http.URL, "http")+path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { conn.Close() })
+		return conn
+	}
+	read := func(conn *Websocket.Conn, eventType string) map[string]any {
+		t.Helper()
+		_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+		for {
+			var event map[string]any
+			if err := conn.ReadJSON(&event); err != nil {
+				t.Fatalf("waiting for %s: %v", eventType, err)
+			}
+			if event["type"] == eventType {
+				return event
+			}
+		}
+	}
+	send := func(conn *Websocket.Conn, event map[string]any) {
+		t.Helper()
+		if err := conn.WriteJSON(event); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	notifications := connect("/ws/notifications/")
+	send(notifications, map[string]any{"type": "auth", "token": bob})
+	read(notifications, "auth_ok")
+	caller := connect(fmt.Sprintf("/ws/chat/%d/?token=%s", id, url.QueryEscape(f.Token)))
+	send(caller, map[string]any{"type": "voip_call_start", "call_type": "audio"})
+	incoming := read(notifications, "incoming_call")
+	if incoming["chat_id"] != chat["id"] || incoming["call_id"] == nil || incoming["call_type"] != "voice" {
+		t.Fatal(incoming)
+	}
+	send(caller, map[string]any{"type": "voip_call_end", "call_id": incoming["call_id"]})
+	closed := read(notifications, "call_closed")
+	if closed["chat_id"] != chat["id"] || closed["call_id"] != incoming["call_id"] {
+		t.Fatal(closed)
+	}
+}
+
 func TestLocalUploadAndPrivateVideo(t *testing.T) {
 	f := setup(t)
 	bob, _ := f.second()
