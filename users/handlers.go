@@ -123,6 +123,53 @@ func (s *Handler) UserList(q *Request) any {
 	}
 	return result
 }
+func (s *Handler) UpdateProfile(q *Request) any {
+	b := q.Body()
+	updates := map[string]any{}
+	if v, ok := b["username"]; ok {
+		username := strings.TrimSpace(Str(v))
+		if username == "" {
+			Fail(400, "Username cannot be empty")
+		}
+		if len(username) > 255 {
+			Fail(400, "Username too long")
+		}
+		var n int64
+		Check(s.DB.Model(&models.User{}).Where("username = ? AND id <> ?", username, q.User.ID).Count(&n).Error)
+		if n > 0 {
+			Fail(409, "Username is taken")
+		}
+		updates["username"] = username
+	}
+	if v, ok := b["email"]; ok {
+		email := strings.ToLower(strings.TrimSpace(Str(v)))
+		if _, e := mail.ParseAddress(email); e != nil {
+			Fail(400, "Valid email is required")
+		}
+		var n int64
+		Check(s.DB.Model(&models.User{}).Where("email = ? AND id <> ?", email, q.User.ID).Count(&n).Error)
+		if n > 0 {
+			Fail(409, "Email is taken")
+		}
+		updates["email"] = email
+	}
+	if len(updates) == 0 {
+		Fail(400, "Nothing to update")
+	}
+	Check(s.DB.Model(&models.User{ID: q.User.ID}).Updates(updates).Error)
+	return PublicUser(Get[models.User](s.DB, q.User.ID))
+}
+
+func (s *Handler) ChangePassword(q *Request) any {
+	b := q.Body()
+	if !verifyPassword(q.User.Password, Str(b["old_password"])) {
+		Fail(401, "Current password is incorrect")
+	}
+	password := hashPassword(Str(b["new_password"]))
+	Check(s.DB.Model(&models.User{ID: q.User.ID}).Update("password", password).Error)
+	return map[string]any{"status": "ok"}
+}
+
 func (s *Handler) Role(q *Request) any {
 	q.Admin()
 	u := Get[models.User](s.DB, q.ID("id"))

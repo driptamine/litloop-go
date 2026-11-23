@@ -11,6 +11,8 @@ func Register(s *Server) {
 	s.Route("POST", "/users/token", false, s.OAuth)
 	s.Route("POST", "/users/token-exchange", false, s.OAuth)
 	s.Route("GET", "/users/me", true, func(q *Request) any { return q.User })
+	s.Route("PUT", "/users/me", true, s.UpdateProfile)
+	s.Route("POST", "/users/me/password", true, s.ChangePassword)
 	s.Route("POST", "/users/me/avatar", true, s.Attachment)
 	s.Route("POST", "/users/me/avatar/gcs", true, s.Attachment)
 	s.Route("POST", "/users/me/avatar/r2", true, s.Attachment)
