@@ -132,3 +132,14 @@ type ChatParticipant struct {
 }
 
 func (ChatParticipant) TableName() string { return "chats_chat_participants" }
+
+type ChatTab struct {
+	ID        int64       `json:"id" gorm:"column:id;primaryKey;autoIncrement"`
+	UserID    int64       `json:"user_id" gorm:"column:user_id;index"`
+	Emoji     string      `json:"emoji" gorm:"column:emoji;size:16"`
+	Position  int         `json:"position" gorm:"column:position;default:0"`
+	ChatIDs   JSON        `json:"chat_ids" gorm:"column:chat_ids;type:json"`
+	UserIDRef *users.User `json:"-" gorm:"belongsTo:true;foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE"`
+}
+
+func (ChatTab) TableName() string { return "chats_chattab" }

@@ -24,6 +24,8 @@ func Register(server *Server) {
 	server.Route("POST", "/chats/group/{id:[0-9]+}/remove", true, server.GroupMember)
 	server.Route("POST", "/chats/{id:[0-9]+}/send", true, server.SendMessage)
 	server.Route("GET", "/chats/{id:[0-9]+}/messages", true, server.MessagesAfter)
+	server.Route("GET", "/chats/tabs", true, server.ChatTabs)
+	server.Route("PUT", "/chats/tabs", true, server.ChatTabsWrite)
 	server.Route("POST", "/chats/{id:[0-9]+}/call", true, server.CallCommand)
 	server.Route("GET", "/chats/{id:[0-9]+}/call", true, server.CallState)
 	server.Route("GET,POST", "/chats/{id:[0-9]+}/voice", true, server.GroupVoice)
