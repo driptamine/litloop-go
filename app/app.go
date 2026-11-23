@@ -20,6 +20,7 @@ import (
 	"litloop/backend/notifications"
 	"litloop/backend/photos"
 	"litloop/backend/playlists"
+	"litloop/backend/push"
 	"litloop/backend/posts"
 	queries "litloop/backend/queries"
 	"litloop/backend/todos"
@@ -49,6 +50,7 @@ func New(db *gorm.DB, appConfig config.Config) *httpapi.Server {
 	moviesHandler := movies.New(server)
 	notesHandler := notes.New(server)
 	notificationsHandler := notifications.New(server)
+	pushHandler := push.New(server)
 	photosHandler := photos.New(server)
 	playlistsHandler := playlists.New(server)
 	postsHandler := posts.New(server)
@@ -130,6 +132,9 @@ func New(db *gorm.DB, appConfig config.Config) *httpapi.Server {
 	server.NativeURL = mediaHandler.NativeURL
 	server.Notifications = notificationsHandler.Notifications
 	server.OAuth = usersHandler.OAuth
+	server.PushSubscribe = pushHandler.Subscribe
+	server.PushUnsubscribe = pushHandler.Unsubscribe
+	server.PushVAPIDKey = pushHandler.VAPIDKey
 	server.OwnedPage = notesHandler.OwnedPage
 	server.PageJSON = notesHandler.PageJSON
 	server.PageTags = notesHandler.PageTags
@@ -205,6 +210,7 @@ func New(db *gorm.DB, appConfig config.Config) *httpapi.Server {
 	notifications.Register(server)
 	photos.Register(server)
 	playlists.Register(server)
+	push.Register(server)
 	posts.Register(server)
 	queries.Register(server)
 	todos.Register(server)

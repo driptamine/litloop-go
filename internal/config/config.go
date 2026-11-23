@@ -22,6 +22,7 @@ type Config struct {
 	GCSBucket, GCSAccessKey, GCSSecretKey, GoogleCredentials						string
 	GoogleClientID, VKClientID, VKClientSecret								string
 	GoogleAdditionalRedirectURIs										[]string
+	VAPIDPublicKey, VAPIDPrivateKey, VAPIDSubject							string
 	GeminiKey, GeminiModel, BraveKey, BingKey, GoogleSearchKey, GoogleSearchCX, TMDBKey			string
 	SMTPAddr, SMTPUser, SMTPPassword, SMTPFrom, FrontendURL, TranscriptionURL, TranscriptionSecret, SpotURL	string
 	ICEURLs, ICEUsername, ICECredential									string
@@ -64,6 +65,7 @@ func Load() Config {
 		RequireR2Media:	env("REQUIRE_R2_MEDIA", "false") == "true",
 		GCSBucket:	os.Getenv("GCS_BUCKET_NAME"), GCSAccessKey: os.Getenv("GCS_ACCESS_KEY_ID"), GCSSecretKey: os.Getenv("GCS_SECRET_ACCESS_KEY"), GoogleCredentials: os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"), GoogleClientID: os.Getenv("GOOGLE_CLIENT_ID"), VKClientID: os.Getenv("VK_CLIENT_ID"), VKClientSecret: os.Getenv("VK_CLIENT_SECRET"),
 		GoogleAdditionalRedirectURIs:	strings.FieldsFunc(os.Getenv("GOOGLE_OAUTH_ADDITIONAL_REDIRECT_URIS"), func(ch rune) bool { return ch == ',' || ch == ' ' }),
+		VAPIDPublicKey: os.Getenv("VAPID_PUBLIC_KEY"), VAPIDPrivateKey: os.Getenv("VAPID_PRIVATE_KEY"), VAPIDSubject: env("VAPID_SUBJECT", "mailto:admin@litloop.org"),
 		GeminiKey:			os.Getenv("GEMINI_API_KEY"), GeminiModel: env("GEMINI_MODEL", "gemini-2.5-flash"), BraveKey: os.Getenv("BRAVE_API_KEY"), BingKey: os.Getenv("BING_API_KEY"), GoogleSearchKey: os.Getenv("GOOGLE_SEARCH_API_KEY"), GoogleSearchCX: os.Getenv("GOOGLE_SEARCH_CX"), TMDBKey: os.Getenv("TMDB_API_KEY"),
 		SMTPAddr:	os.Getenv("SMTP_ADDR"), SMTPUser: os.Getenv("SMTP_USER"), SMTPPassword: os.Getenv("SMTP_PASSWORD"), SMTPFrom: os.Getenv("SMTP_FROM"), FrontendURL: env("FRONTEND_URL", "http://localhost:3000"), TranscriptionURL: os.Getenv("TRANSCRIPTION_URL"), TranscriptionSecret: os.Getenv("TRANSCRIPTION_SECRET"), SpotURL: os.Getenv("SPOT_LAUNCH_URL"),
 		ICEURLs:	env("ICE_URLS", "stun:stun.l.google.com:19302"), ICEUsername: os.Getenv("ICE_USERNAME"), ICECredential: os.Getenv("ICE_CREDENTIAL"),

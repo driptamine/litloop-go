@@ -28,6 +28,7 @@ type Track struct {
 	TrackURI    string        `json:"track_uri" gorm:"column:track_uri;size:400"`
 	Name        string        `json:"name" gorm:"column:name;size:400"`
 	TrackNumber string        `json:"track_number" gorm:"column:track_number;size:400"`
+	Duration    float64       `json:"duration" gorm:"column:duration;default:0"`
 	AlbumID     *int64        `json:"album_id" gorm:"column:album_id;index"`
 	CreatedAt   time.Time     `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt   time.Time     `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`

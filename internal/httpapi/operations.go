@@ -103,6 +103,9 @@ type Operations struct {
 	PostWrite             func(q *Request) any
 	Posts                 func(q *Request) any
 	PrivateWatchlist      func(q *Request, u models.User) any
+	PushSubscribe         func(q *Request) any
+	PushUnsubscribe       func(q *Request) any
+	PushVAPIDKey          func(q *Request) any
 	Refresh               func(q *Request) any
 	Reorder               func(q *Request) any
 	ResetPassword         func(q *Request) any

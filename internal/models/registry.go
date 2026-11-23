@@ -17,6 +17,7 @@ import (
 	notifications "litloop/backend/notifications/model"
 	photos "litloop/backend/photos/model"
 	playlists "litloop/backend/playlists/model"
+	push "litloop/backend/push/model"
 	posts "litloop/backend/posts/model"
 	queries "litloop/backend/queries/model"
 	suggestions "litloop/backend/suggestions/model"
@@ -113,6 +114,7 @@ type Website = websites.Website
 type WebsiteImage = websites.WebsiteImage
 type Meme = memes.Meme
 type Notification = notifications.Notification
+type PushSubscription = push.Subscription
 type Channel = broadcasts.Channel
 type ChannelPost = broadcasts.ChannelPost
 type ChannelPostLike = broadcasts.ChannelPostLike
@@ -223,5 +225,6 @@ func All() []any {
 		&TrackArtist{},
 		&MemeLikedBy{},
 		&Task{}, &Upload{}, &ResetToken{}, &RevokedToken{}, &MovieLike{}, &Asset{},
+		&PushSubscription{},
 	}
 }

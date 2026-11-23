@@ -3,6 +3,7 @@ package media
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	. "litloop/backend/internal/httpapi"
 	"litloop/backend/internal/models"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -193,8 +195,9 @@ func (handler *Handler) UploadComplete(req *Request) any {
 			upload.ResourceID = video.ID
 			resource = safeMedia(video)
 		case "tracks":
-			track := models.Track{UserID: Ptr(req.User.ID), S3Key: s3Key, GCSKey: gcsKey, R2Key: r2Key, Filename: upload.Filename, Status: "draft", Name: Str(body["name"]), TrackURI: Token()}
+			track := models.Track{UserID: Ptr(req.User.ID), S3Key: s3Key, GCSKey: gcsKey, R2Key: r2Key, Filename: upload.Filename, Status: "draft", Name: Str(body["name"]), TrackURI: Token(), Duration: uploadDuration(body["duration"])}
 			Check(tx.Create(&track).Error)
+			linkTrackArtists(tx, Str(body["artist"]), track.ID)
 			upload.ResourceID = track.ID
 			resource = safeMedia(track)
 		case "videos":
@@ -229,6 +232,30 @@ func (handler *Handler) UploadComplete(req *Request) any {
 	}())
 	return map[string]any{"status": "completed", "id": upload.ResourceID, "location": location, "resource": resource}
 }
+func uploadDuration(value any) float64 {
+	// Request bodies decode numbers as json.Number (see Request.Body).
+	if parsed, err := strconv.ParseFloat(fmt.Sprint(value), 64); err == nil && parsed > 0 {
+		return parsed
+	}
+	return 0
+}
+
+func linkTrackArtists(tx *gorm.DB, raw string, trackID int64) {
+	separator := ","
+	if strings.Contains(raw, ";") {
+		separator = ";"
+	}
+	for _, name := range strings.Split(raw, separator) {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		artist := models.Artist{Name: name, ArtistURI: "local-" + strings.Trim(SlugRE.ReplaceAllString(strings.ToLower(name), "-"), "-")}
+		Check(tx.Where("name = ?", name).FirstOrCreate(&artist).Error)
+		Check(tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&models.TrackArtist{TrackID: trackID, ArtistID: artist.ID}).Error)
+	}
+}
+
 func (handler *Handler) CancelUpload(req *Request) any {
 	upload := handler.PendingUpload(req)
 	if upload.Provider != "local" && upload.Provider != "native" {

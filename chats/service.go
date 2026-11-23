@@ -4,6 +4,7 @@ import (
 	"fmt"
 	. "litloop/backend/internal/httpapi"
 	"litloop/backend/internal/models"
+	"litloop/backend/push"
 	"strings"
 
 	"gorm.io/gorm"
@@ -85,6 +86,8 @@ func (handler *Handler) SaveMessage(chat int64, user models.User, body map[strin
 		return nil
 	}))
 	message := handler.MessageJSON(chatMessage)
+	chatRecord := Get[models.Chat](handler.DB, chat)
+	go push.New(handler.Server).SendDirectMessage(chatRecord, user, recipients, text, voiceID, attachments)
 	handler.Hub.Broadcast(fmt.Sprint(chat), map[string]any{"type": "new_message", "message": message})
 	for _, recipient := range recipients {
 		handler.Hub.Broadcast("user:"+fmt.Sprint(recipient.UserID), map[string]any{
