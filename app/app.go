@@ -175,6 +175,9 @@ func New(db *gorm.DB, appConfig config.Config) *httpapi.Server {
 	server.Todos = todosHandler.Todos
 	server.Tokens = usersHandler.Tokens
 	server.TrackJSON = tracksHandler.TrackJSON
+	server.TrackLikeToggle = tracksHandler.TrackLikeToggle
+	server.TrackLikeStatus = tracksHandler.TrackLikeStatus
+	server.TrackLikedList = tracksHandler.TrackLikedList
 	server.TrackWrite = tracksHandler.TrackWrite
 	server.Transcription = chatsHandler.Transcription
 	server.TranscriptionCallback = chatsHandler.TranscriptionCallback

@@ -22,4 +22,7 @@ func Register(server *Server) {
 	server.Route("GET", "/tracks/{key}", false, server.Catalog)
 	server.Route("GET,PUT,PATCH", "/tracks/{key}/upd", true, server.TrackWrite)
 	server.Route("DELETE", "/tracks/{key}/del", true, server.TrackWrite)
+	server.Route("GET", "/tracks/liked", true, server.TrackLikedList)
+	server.Route("GET", "/tracks/like/{id:[0-9]+}", true, server.TrackLikeStatus)
+	server.Route("POST", "/tracks/like/{id:[0-9]+}", true, server.TrackLikeToggle)
 }

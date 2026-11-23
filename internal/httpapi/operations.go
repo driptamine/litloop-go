@@ -130,6 +130,9 @@ type Operations struct {
 	Todos                 func(q *Request) any
 	Tokens                func(u models.User) map[string]any
 	TrackJSON             func(t models.Track) any
+	TrackLikeToggle       func(q *Request) any
+	TrackLikeStatus       func(q *Request) any
+	TrackLikedList        func(q *Request) any
 	TrackWrite            func(q *Request) any
 	Transcription         func(q *Request) any
 	TranscriptionCallback func(q *Request) any
