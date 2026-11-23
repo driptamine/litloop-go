@@ -20,8 +20,8 @@ import (
 	"litloop/backend/notifications"
 	"litloop/backend/photos"
 	"litloop/backend/playlists"
-	"litloop/backend/push"
 	"litloop/backend/posts"
+	"litloop/backend/push"
 	queries "litloop/backend/queries"
 	"litloop/backend/todos"
 	"litloop/backend/tracks"
@@ -157,6 +157,9 @@ func New(db *gorm.DB, appConfig config.Config) *httpapi.Server {
 	server.Reorder = todosHandler.Reorder
 	server.ResetPassword = usersHandler.ResetPassword
 	server.Resumes = jobsHandler.Resumes
+	server.ReleaseUsername = usersHandler.ReleaseUsername
+	server.ReservedUsernames = usersHandler.ReservedUsernames
+	server.ReserveUsernames = usersHandler.ReserveUsernames
 	server.Role = usersHandler.Role
 	server.SaveLink = linksHandler.SaveLink
 	server.SaveMessage = chatsHandler.SaveMessage

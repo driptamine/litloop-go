@@ -30,7 +30,7 @@ func (handler *Handler) Signup(req *Request) any {
 	}
 	var count int64
 	Check(handler.DB.Model(&models.User{}).Where("username = ?", username).Count(&count).Error)
-	if count > 0 {
+	if count > 0 || handler.usernameReserved(username) {
 		username += "_" + Token()[:8]
 	}
 	avatar := Str(body["avatar"])
@@ -139,6 +139,9 @@ func (handler *Handler) UpdateProfile(req *Request) any {
 		if count > 0 {
 			Fail(409, "Username is taken")
 		}
+		if handler.reservedUsernameTaken(username, req.User.ID) {
+			Fail(409, "Username is reserved")
+		}
 		updates["username"] = username
 	}
 	if value, ok := body["email"]; ok {
@@ -157,6 +160,9 @@ func (handler *Handler) UpdateProfile(req *Request) any {
 		Fail(400, "Nothing to update")
 	}
 	Check(handler.DB.Model(&models.User{ID: req.User.ID}).Updates(updates).Error)
+	if name, ok := updates["username"]; ok {
+		Check(handler.DB.Where("username = ? AND assigned_to_id = ?", Str(name), req.User.ID).Delete(&models.ReservedUsername{}).Error)
+	}
 	return PublicUser(Get[models.User](handler.DB, req.User.ID))
 }
 

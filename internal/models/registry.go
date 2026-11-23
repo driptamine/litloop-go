@@ -17,8 +17,8 @@ import (
 	notifications "litloop/backend/notifications/model"
 	photos "litloop/backend/photos/model"
 	playlists "litloop/backend/playlists/model"
-	push "litloop/backend/push/model"
 	posts "litloop/backend/posts/model"
+	push "litloop/backend/push/model"
 	queries "litloop/backend/queries/model"
 	suggestions "litloop/backend/suggestions/model"
 	todos "litloop/backend/todos/model"
@@ -29,6 +29,7 @@ import (
 )
 
 type User = users.User
+type ReservedUsername = users.ReservedUsername
 type Artist = artists.Artist
 type AlbumTrack = albums.AlbumTrack
 type AlbumArtist = albums.AlbumArtist
@@ -226,6 +227,6 @@ func All() []any {
 		&TrackArtist{},
 		&MemeLikedBy{},
 		&Task{}, &Upload{}, &ResetToken{}, &RevokedToken{}, &MovieLike{}, &Asset{},
-		&PushSubscription{}, &ChatTab{},
+		&PushSubscription{}, &ChatTab{}, &ReservedUsername{},
 	}
 }

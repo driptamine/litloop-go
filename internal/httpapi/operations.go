@@ -112,6 +112,9 @@ type Operations struct {
 	Reorder               func(q *Request) any
 	ResetPassword         func(q *Request) any
 	Resumes               func(q *Request) any
+	ReleaseUsername       func(q *Request) any
+	ReservedUsernames     func(q *Request) any
+	ReserveUsernames      func(q *Request) any
 	Role                  func(q *Request) any
 	SaveLink              func(tx *gorm.DB, u int64, b map[string]any) models.Link
 	SaveMessage           func(chat int64, u models.User, b map[string]any) models.Message

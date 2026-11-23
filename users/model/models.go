@@ -23,3 +23,15 @@ type User struct {
 }
 
 func (User) TableName() string { return "users_user" }
+
+type ReservedUsername struct {
+	ID              int64     `json:"id" gorm:"column:id;primaryKey;autoIncrement"`
+	Username        string    `json:"username" gorm:"column:username;uniqueIndex;size:64"`
+	AssignedToID    *int64    `json:"assigned_to_id" gorm:"column:assigned_to_id;index"`
+	ReservedByID    *int64    `json:"reserved_by_id" gorm:"column:reserved_by_id;index"`
+	CreatedAt       time.Time `json:"created_at" gorm:"column:created_at;autoCreateTime"`
+	AssignedToIDRef *User     `json:"-" gorm:"belongsTo:true;foreignKey:AssignedToID;references:ID;constraint:OnDelete:SET NULL"`
+	ReservedByIDRef *User     `json:"-" gorm:"belongsTo:true;foreignKey:ReservedByID;references:ID;constraint:OnDelete:SET NULL"`
+}
+
+func (ReservedUsername) TableName() string { return "users_reserved_username" }
