@@ -10,6 +10,7 @@ type User struct {
 	Username    string     `json:"username"  gorm:"column:username;uniqueIndex;index;size:255"`
 	Email       string     `json:"email"   gorm:"column:email;uniqueIndex;index;size:255"`
 	Avatar      string     `json:"avatar"   gorm:"column:avatar;size:500"`
+	CoverImage  string     `json:"cover_image"   gorm:"column:cover_image;size:500"`
 	IsVerified  bool       `json:"is_verified"  gorm:"column:is_verified;default:false"`
 	IsActive    bool       `json:"is_active"  gorm:"column:is_active;default:true"`
 	IsStaff     bool       `json:"is_staff"  gorm:"column:is_staff;default:false"`

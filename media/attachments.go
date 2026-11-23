@@ -69,7 +69,7 @@ func (handler *Handler) SaveUploadedFile(req *Request, file multipart.File, head
 	} else if strings.Contains(req.R.URL.Path, "/gcs") {
 		provider = "gcs"
 	}
-	stableImage := strings.Contains(req.R.URL.Path, "avatar") || strings.Contains(req.R.URL.Path, "/icon/") || strings.Contains(req.R.URL.Path, "/banner/") || strings.Contains(req.R.URL.Path, "background-image")
+	stableImage := strings.Contains(req.R.URL.Path, "avatar") || strings.Contains(req.R.URL.Path, "cover") || strings.Contains(req.R.URL.Path, "/icon/") || strings.Contains(req.R.URL.Path, "/banner/") || strings.Contains(req.R.URL.Path, "background-image")
 	if stableImage {
 		if !strings.HasPrefix(detected, "image/") || detected == "image/svg+xml" {
 			Fail(400, "A raster image is required")
@@ -117,6 +117,10 @@ func (handler *Handler) Attachment(req *Request) any {
 	if strings.Contains(req.R.URL.Path, "avatar") {
 		Check(handler.DB.Model(req.User).Update("avatar", uri).Error)
 		return map[string]any{"avatar": uri, "user": Get[models.User](handler.DB, req.User.ID)}
+	}
+	if strings.Contains(req.R.URL.Path, "cover") {
+		Check(handler.DB.Model(req.User).Update("cover_image", uri).Error)
+		return map[string]any{"cover_image": uri, "user": Get[models.User](handler.DB, req.User.ID)}
 	}
 	if strings.Contains(req.R.URL.Path, "background-image") {
 		profile := models.Profile{UserID: req.User.ID, BackgroundImage: uri}
