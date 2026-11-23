@@ -27,6 +27,7 @@ func messageAttachments(message models.Message) []any {
 type messageBundle struct {
 	users	map[int64]models.User
 	voices	map[int64]models.VoiceMessage
+	replied	map[int64]models.Message
 	owned	map[r2Ownership]bool
 }
 
@@ -40,6 +41,7 @@ func (handler *Handler) loadMessageBundle(msgs []models.Message) *messageBundle 
 	bundle := &messageBundle{
 		users:	map[int64]models.User{},
 		voices:	map[int64]models.VoiceMessage{},
+		replied:	map[int64]models.Message{},
 		owned:	map[r2Ownership]bool{},
 	}
 	if len(msgs) == 0 {
@@ -48,11 +50,26 @@ func (handler *Handler) loadMessageBundle(msgs []models.Message) *messageBundle 
 	userIDs := make([]int64, 0, len(msgs))
 	seenUsers := map[int64]bool{}
 	msgIDs := make([]int64, 0, len(msgs))
+	replyIDs := make([]int64, 0, len(msgs))
+	seenReplies := map[int64]bool{}
 	for _, message := range msgs {
 		msgIDs = append(msgIDs, message.ID)
 		if message.UserID != nil && !seenUsers[*message.UserID] {
 			seenUsers[*message.UserID] = true
 			userIDs = append(userIDs, *message.UserID)
+		}
+		if message.ReplyTo != nil && !seenReplies[*message.ReplyTo] {
+			seenReplies[*message.ReplyTo] = true
+			replyIDs = append(replyIDs, *message.ReplyTo)
+		}
+	}
+	if len(replyIDs) > 0 {
+		for _, parent := range All[models.Message](handler.DB.Where("id IN ?", replyIDs)) {
+			bundle.replied[parent.ID] = parent
+			if parent.UserID != nil && !seenUsers[*parent.UserID] {
+				seenUsers[*parent.UserID] = true
+				userIDs = append(userIDs, *parent.UserID)
+			}
 		}
 	}
 	if len(userIDs) > 0 {
@@ -187,6 +204,18 @@ func (handler *Handler) messageJSONWith(message models.Message, bundle *messageB
 	}
 	if voice, ok := bundle.voices[message.ID]; ok {
 		out["voice_message"] = handler.VoiceJSON(voice)
+	}
+	if message.ReplyTo != nil {
+		if parent, ok := bundle.replied[*message.ReplyTo]; ok {
+			quote := map[string]any{"id": parent.ID, "text": Truncate(parent.Text, 140), "username": "AI", "avatar": nil}
+			if parent.UserID != nil {
+				if user, ok := bundle.users[*parent.UserID]; ok {
+					quote["username"] = user.Username
+					quote["avatar"] = user.Avatar
+				}
+			}
+			out["reply_to_message"] = quote
+		}
 	}
 	return out
 }

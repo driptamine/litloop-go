@@ -59,7 +59,15 @@ func (handler *Handler) SaveMessage(chat int64, user models.User, body map[strin
 	if strings.TrimSpace(text) == "" && len(attachments) == 0 && voiceID == 0 {
 		Fail(400, "Message is empty")
 	}
-	chatMessage := models.Message{ChatID: Ptr(chat), UserID: Ptr(user.ID), Text: text, Attachments: models.AsJSON(attachments)}
+	var replyToID *int64
+	if body["reply_to"] != nil {
+		parent := Get[models.Message](handler.DB, Num(body["reply_to"]))
+		if parent.ChatID == nil || *parent.ChatID != chat {
+			Fail(400, "reply_to must belong to this chat")
+		}
+		replyToID = Ptr(parent.ID)
+	}
+	chatMessage := models.Message{ChatID: Ptr(chat), UserID: Ptr(user.ID), ReplyTo: replyToID, Text: text, Attachments: models.AsJSON(attachments)}
 	var recipients []models.ChatParticipant
 	Check(handler.DB.Transaction(func(tx *gorm.DB) error {
 		// Keep the message ID cursor in commit order within this conversation.

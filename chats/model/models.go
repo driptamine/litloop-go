@@ -27,6 +27,7 @@ type Message struct {
 	ID          int64       `json:"id" gorm:"column:id;primaryKey;autoIncrement"`
 	ChatID      *int64      `json:"chat_id" gorm:"column:chat_id;index"`
 	UserID      *int64      `json:"user_id" gorm:"column:user_id;index"`
+	ReplyTo     *int64      `json:"reply_to" gorm:"column:reply_to;index"`
 	Text        string      `json:"text" gorm:"column:text"`
 	Attachments JSON        `json:"attachments" gorm:"column:attachments;type:json"`
 	IsRead      bool        `json:"is_read" gorm:"column:is_read;default:false"`
