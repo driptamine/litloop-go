@@ -34,6 +34,7 @@ type Operations struct {
 	Presence              func(q *Request) any
 	CallCommand           func(q *Request) any
 	CallState             func(q *Request) any
+	ChangePassword        func(q *Request) any
 	GroupVoice            func(q *Request) any
 	IncomingCall          func(q *Request) any
 	MessagesAfter         func(q *Request) any
@@ -132,6 +133,7 @@ type Operations struct {
 	UploadPart            func(q *Request) any
 	UploadProvider        func(q *Request) string
 	UploadPut             func(q *Request) any
+	UpdateProfile         func(q *Request) any
 	UserDetail            func(q *Request) any
 	UserList              func(q *Request) any
 	UserMedia             func(q *Request) any

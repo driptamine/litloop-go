@@ -17,9 +17,11 @@ func (s *Handler) ChatList(q *Request) any {
 	} else if strings.HasSuffix(q.R.URL.Path, "/group") {
 		db = db.Where("chat_type = ?", "groupchat")
 	}
+	chats := All[models.Chat](db.Order("(SELECT MAX(created_at) FROM chats_message WHERE chat_id = chats_chat.id) DESC NULLS LAST"))
+	preloads := s.loadChatPreload(chats, q.User.ID, false)
 	out := []any{}
-	for _, c := range All[models.Chat](db.Order("(SELECT MAX(created_at) FROM chats_message WHERE chat_id = chats_chat.id) DESC NULLS LAST")) {
-		out = append(out, s.ChatJSON(c, q.User.ID, false))
+	for _, c := range chats {
+		out = append(out, s.chatJSONWith(c, q.User.ID, false, preloads[c.ID]))
 	}
 	return map[string]any{"chats": out}
 }
@@ -36,11 +38,7 @@ func (s *Handler) MessagesAfter(q *Request) any {
 	if hasMore {
 		rows = rows[:pageSize]
 	}
-	messages := make([]map[string]any, 0, len(rows))
-	for _, message := range rows {
-		messages = append(messages, s.MessageJSON(message))
-	}
-	return map[string]any{"messages": messages, "has_more": hasMore}
+	return map[string]any{"messages": s.messagesJSON(rows), "has_more": hasMore}
 }
 func (s *Handler) DirectChat(q *Request) any {
 	saved := strings.HasSuffix(q.R.URL.Path, "/saved")

@@ -77,6 +77,7 @@ func New(db *gorm.DB, c config.Config) *httpapi.Server {
 	s.Presence = chatsHandler.Presence
 	s.CallCommand = chatsHandler.CallCommand
 	s.CallState = chatsHandler.CallState
+	s.ChangePassword = usersHandler.ChangePassword
 	s.GroupVoice = chatsHandler.GroupVoice
 	s.IncomingCall = chatsHandler.IncomingCall
 	s.MessagesAfter = chatsHandler.MessagesAfter
@@ -175,6 +176,7 @@ func New(db *gorm.DB, c config.Config) *httpapi.Server {
 	s.UploadPart = mediaHandler.UploadPart
 	s.UploadProvider = mediaHandler.UploadProvider
 	s.UploadPut = mediaHandler.UploadPut
+	s.UpdateProfile = usersHandler.UpdateProfile
 	s.UserDetail = usersHandler.UserDetail
 	s.UserList = usersHandler.UserList
 	s.UserMedia = usersHandler.UserMedia

@@ -79,7 +79,7 @@ func (s *Handler) r2AttachmentKey(rawURL string) string {
 	return key
 }
 
-func (s *Handler) setAttachmentURLs(attachments []any, message models.Message) {
+func (s *Handler) setAttachmentURLs(attachments []any, message models.Message, owned map[r2Ownership]bool) {
 	for _, item := range attachments {
 		attachment, ok := item.(map[string]any)
 		if !ok {
@@ -91,7 +91,7 @@ func (s *Handler) setAttachmentURLs(attachments []any, message models.Message) {
 			// Messages created before keys were stored can contain a signed R2 URL.
 			key = s.r2AttachmentKey(Str(attachment["url"]))
 		}
-		if message.UserID != nil && s.ownsR2Attachment(*message.UserID, Str(attachment["type"]), key) {
+		if message.UserID != nil && owned[r2Ownership{userID: *message.UserID, kind: Str(attachment["type"]), key: key}] {
 			attachment["url"] = storage.PresignedURL(s.Config, "r2", key)
 			continue
 		}
