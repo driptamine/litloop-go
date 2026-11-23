@@ -6,11 +6,11 @@ import (
 	"net/http"
 )
 
-func (s *Handler) Notifications(q *Request) any {
-	if q.R.Method == http.MethodPost {
-		list := IDs(q.Body()["ids"])
-		Check(s.DB.Model(&models.Notification{}).Where("to_user_id = ? AND id IN ?", q.User.ID, list).Update("is_read", true).Error)
+func (handler *Handler) Notifications(req *Request) any {
+	if req.R.Method == http.MethodPost {
+		list := IDs(req.Body()["ids"])
+		Check(handler.DB.Model(&models.Notification{}).Where("to_user_id = ? AND id IN ?", req.User.ID, list).Update("is_read", true).Error)
 		return map[string]any{"status": "ok"}
 	}
-	return All[models.Notification](s.DB.Where("to_user_id = ?", q.User.ID).Order("id DESC").Limit(100))
+	return All[models.Notification](handler.DB.Where("to_user_id = ?", req.User.ID).Order("id DESC").Limit(100))
 }

@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 )
 
-func (w *Worker) uploadHLS(ctx context.Context, dir, keyPrefix string) error {
-	store, err := storage.New(w.Config, "r2")
+func (worker *Worker) uploadHLS(ctx context.Context, dir, keyPrefix string) error {
+	store, err := storage.New(worker.Config, "r2")
 	if err != nil {
 		return err
 	}

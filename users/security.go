@@ -25,16 +25,16 @@ func VerifyPassword(hash, password string) bool {
 		return false
 	}
 	if strings.HasPrefix(hash, "pbkdf2_sha256$") {
-		p := strings.Split(hash, "$")
-		if len(p) != 4 {
+		parts := strings.Split(hash, "$")
+		if len(parts) != 4 {
 			return false
 		}
-		n, e := strconv.Atoi(p[1])
-		if e != nil || n < 1 || n > 10000000 {
+		parsed, err := strconv.Atoi(parts[1])
+		if err != nil || parsed < 1 || parsed > 10000000 {
 			return false
 		}
-		key := pbkdf2.Key([]byte(password), []byte(p[2]), n, 32, sha256.New)
-		return subtle.ConstantTimeCompare([]byte(base64.StdEncoding.EncodeToString(key)), []byte(p[3])) == 1
+		key := pbkdf2.Key([]byte(password), []byte(parts[2]), parsed, 32, sha256.New)
+		return subtle.ConstantTimeCompare([]byte(base64.StdEncoding.EncodeToString(key)), []byte(parts[3])) == 1
 	}
 	if strings.HasPrefix(hash, "bcrypt_sha256$") {
 		passwordBytes := sha256.Sum256([]byte(password))

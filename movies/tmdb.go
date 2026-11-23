@@ -7,39 +7,39 @@ import (
 	"gorm.io/gorm"
 )
 
-func (s *Handler) MovieFeed(q *Request) any {
-	if s.Config.TMDBKey == "" {
+func (handler *Handler) MovieFeed(req *Request) any {
+	if handler.Config.TMDBKey == "" {
 		Fail(503, "TMDB_API_KEY is not configured")
 	}
-	page, _ := Pagination(q, 20, "page_size")
-	data := s.FetchJSON(q, "GET", "https://api.themoviedb.org/3/movie/popular?api_key="+s.Config.TMDBKey+"&page="+Str(page), nil, nil).(map[string]any)
+	page, _ := Pagination(req, 20, "page_size")
+	data := handler.FetchJSON(req, "GET", "https://api.themoviedb.org/3/movie/popular?api_key="+handler.Config.TMDBKey+"&page="+Str(page), nil, nil).(map[string]any)
 	list, ok := data["results"].([]any)
 	if !ok {
 		Fail(502, "Invalid TMDB response")
 	}
-	q.Tx(func(tx *gorm.DB) error {
-		for _, v := range list {
-			item, ok := v.(map[string]any)
+	req.Tx(func(tx *gorm.DB) error {
+		for _, entry := range list {
+			item, ok := entry.(map[string]any)
 			if !ok {
 				Fail(502, "Invalid TMDB movie")
 			}
 			id := Num(item["id"])
-			var m models.Movie
-			e := tx.First(&m, "tmdb_id = ?", id).Error
-			if e == gorm.ErrRecordNotFound {
-				m = models.Movie{TmdbID: Ptr(id), Title: Str(item["title"]), Description: Str(item["overview"])}
-				if p := Str(item["poster_path"]); p != "" {
-					m.Poster = "https://image.tmdb.org/t/p/w500" + p
+			var movie models.Movie
+			err := tx.First(&movie, "tmdb_id = ?", id).Error
+			if err == gorm.ErrRecordNotFound {
+				movie = models.Movie{TmdbID: Ptr(id), Title: Str(item["title"]), Description: Str(item["overview"])}
+				if poster := Str(item["poster_path"]); poster != "" {
+					movie.Poster = "https://image.tmdb.org/t/p/w500" + poster
 				}
-				if p := Str(item["backdrop_path"]); p != "" {
-					m.MovieFile = "https://image.tmdb.org/t/p/w1280" + p
+				if backdrop := Str(item["backdrop_path"]); backdrop != "" {
+					movie.MovieFile = "https://image.tmdb.org/t/p/w1280" + backdrop
 				}
-				Check(tx.Create(&m).Error)
+				Check(tx.Create(&movie).Error)
 			} else {
-				Check(e)
+				Check(err)
 			}
-			item["db_id"] = m.ID
-			item["impressions_count"] = m.ImpressionsCount
+			item["db_id"] = movie.ID
+			item["impressions_count"] = movie.ImpressionsCount
 		}
 		return nil
 	})

@@ -5,6 +5,6 @@ import (
 	"litloop/backend/internal/models"
 )
 
-func (s *Handler) OwnedPage(q *Request, id int64) models.Page {
-	return Get[models.Page](s.DB.Where("author_id = ?", q.User.ID), id)
+func (handler *Handler) OwnedPage(req *Request, id int64) models.Page {
+	return Get[models.Page](handler.DB.Where("author_id = ?", req.User.ID), id)
 }

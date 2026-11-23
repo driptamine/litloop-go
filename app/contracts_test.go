@@ -11,119 +11,119 @@ import (
 	"testing"
 )
 
-func TestCommunitySubmissionCreatesPostAndPreservesModeration(t *testing.T) {
-	f := setup(t)
-	bob, _ := f.second()
-	c := f.req("POST", "/communities/create", f.Token, map[string]any{"name": "Community"}, 201)
-	cid := int64(c["id"].(float64))
+func TestCommunitySubmissionCreatesPostAndPreservesModeration(tester *testing.T) {
+	fixture := setup(tester)
+	bob, _ := fixture.second()
+	response := fixture.req("POST", "/communities/create", fixture.Token, map[string]any{"name": "Community"}, 201)
+	cid := int64(response["id"].(float64))
 	path := fmt.Sprintf("/communities/%d", cid)
-	f.req("POST", path+"/join", bob, map[string]any{}, 200)
-	submitted := f.req("POST", path+"/posts/request", bob, map[string]any{"title": "Submitted directly", "description": "Community content"}, 201)
+	fixture.req("POST", path+"/join", bob, map[string]any{}, 200)
+	submitted := fixture.req("POST", path+"/posts/request", bob, map[string]any{"title": "Submitted directly", "description": "Community content"}, 201)
 	if submitted["status"] != "pending" || submitted["title"] != "Submitted directly" {
-		t.Fatal(submitted)
+		tester.Fatal(submitted)
 	}
 	requestID := int64(submitted["community_post_id"].(float64))
-	approved := f.req("POST", fmt.Sprintf("%s/posts/%d/approve", path, requestID), f.Token, map[string]any{}, 200)
+	approved := fixture.req("POST", fmt.Sprintf("%s/posts/%d/approve", path, requestID), fixture.Token, map[string]any{}, 200)
 	if approved["status"] != "approved" || approved["requested_by"] == nil {
-		t.Fatal(approved)
+		tester.Fatal(approved)
 	}
-	f.req("POST", fmt.Sprintf("%s/posts/%d/approve", path, requestID), f.Token, map[string]any{}, 400)
-	published := f.req("GET", path+"/posts", "", nil, 200)
+	fixture.req("POST", fmt.Sprintf("%s/posts/%d/approve", path, requestID), fixture.Token, map[string]any{}, 400)
+	published := fixture.req("GET", path+"/posts", "", nil, 200)
 	if len(published["posts"].([]any)) != 1 {
-		t.Fatal(published)
+		tester.Fatal(published)
 	}
-	member := f.req("GET", path, bob, nil, 200)
+	member := fixture.req("GET", path, bob, nil, 200)
 	if member["user_is_member"] != true || member["member_count"] != float64(2) {
-		t.Fatal(member)
+		tester.Fatal(member)
 	}
 }
-func TestTrackEditAlbumArtistsAndDate(t *testing.T) {
-	f := setup(t)
+func TestTrackEditAlbumArtistsAndDate(tester *testing.T) {
+	fixture := setup(tester)
 	album := models.Album{Name: "Album", AlbumURI: "album-test"}
-	if err := f.s.DB.Create(&album).Error; err != nil {
-		t.Fatal(err)
+	if err := fixture.s.DB.Create(&album).Error; err != nil {
+		tester.Fatal(err)
 	}
-	track := models.Track{Name: "Old", TrackURI: "track-test", UserID: &f.user}
-	if err := f.s.DB.Create(&track).Error; err != nil {
-		t.Fatal(err)
+	track := models.Track{Name: "Old", TrackURI: "track-test", UserID: &fixture.user}
+	if err := fixture.s.DB.Create(&track).Error; err != nil {
+		tester.Fatal(err)
 	}
-	edited := f.req("PATCH", "/tracks/track-test/upd", f.Token, map[string]any{"name": "New", "album_uri": "album-test", "artist_names": "Alice; Bob", "release_date": "2026-11-12"}, 200)
+	edited := fixture.req("PATCH", "/tracks/track-test/upd", fixture.Token, map[string]any{"name": "New", "album_uri": "album-test", "artist_names": "Alice; Bob", "release_date": "2026-11-12"}, 200)
 	if edited["name"] != "New" || len(edited["artists"].([]any)) != 2 || edited["release_date"] == nil {
-		t.Fatal(edited)
+		tester.Fatal(edited)
 	}
 	var stored models.Track
-	if err := f.s.DB.First(&stored, track.ID).Error; err != nil {
-		t.Fatal(err)
+	if err := fixture.s.DB.First(&stored, track.ID).Error; err != nil {
+		tester.Fatal(err)
 	}
 	if stored.AlbumID == nil || *stored.AlbumID != album.ID {
-		t.Fatal(stored)
+		tester.Fatal(stored)
 	}
 }
-func TestMultipartPostAndArrayUserFeed(t *testing.T) {
-	f := setup(t)
+func TestMultipartPostAndArrayUserFeed(tester *testing.T) {
+	fixture := setup(tester)
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
 	_ = writer.WriteField("title", "Uploaded photo")
 	_ = writer.WriteField("description", "Multipart content")
 	part, err := writer.CreateFormFile("photos", "photo.png")
 	if err != nil {
-		t.Fatal(err)
+		tester.Fatal(err)
 	}
 	_, _ = part.Write([]byte("\x89PNG\r\n\x1a\nimage-data"))
 	_ = writer.Close()
-	request, _ := http.NewRequest("POST", f.http.URL+"/posts/create/postman", &body)
-	request.Header.Set("Authorization", "Bearer "+f.Token)
+	request, _ := http.NewRequest("POST", fixture.http.URL+"/posts/create/postman", &body)
+	request.Header.Set("Authorization", "Bearer "+fixture.Token)
 	request.Header.Set("Content-Type", writer.FormDataContentType())
-	response, err := f.http.Client().Do(request)
+	response, err := fixture.http.Client().Do(request)
 	if err != nil {
-		t.Fatal(err)
+		tester.Fatal(err)
 	}
 	defer response.Body.Close()
 	raw, _ := io.ReadAll(response.Body)
 	if response.StatusCode != 201 {
-		t.Fatalf("%d %s", response.StatusCode, raw)
+		tester.Fatalf("%d %s", response.StatusCode, raw)
 	}
 	var post map[string]any
 	if err = json.Unmarshal(raw, &post); err != nil {
-		t.Fatal(err)
+		tester.Fatal(err)
 	}
 	if post["success"] != true || len(post["photos"].([]any)) != 1 {
-		t.Fatal(post)
+		tester.Fatal(post)
 	}
-	feed, err := f.http.Client().Get(f.http.URL + "/posts/user/alice")
+	feed, err := fixture.http.Client().Get(fixture.http.URL + "/posts/user/alice")
 	if err != nil {
-		t.Fatal(err)
+		tester.Fatal(err)
 	}
 	defer feed.Body.Close()
 	var posts []any
 	if err = json.NewDecoder(feed.Body).Decode(&posts); err != nil {
-		t.Fatal(err)
+		tester.Fatal(err)
 	}
 	if len(posts) != 1 {
-		t.Fatal(posts)
+		tester.Fatal(posts)
 	}
 }
-func TestMPTTIndexesAfterPageMutations(t *testing.T) {
-	f := setup(t)
-	parent := f.req("POST", "/notes/pages/create", f.Token, map[string]any{"title": "Parent"}, 201)
+func TestMPTTIndexesAfterPageMutations(tester *testing.T) {
+	fixture := setup(tester)
+	parent := fixture.req("POST", "/notes/pages/create", fixture.Token, map[string]any{"title": "Parent"}, 201)
 	id := int64(parent["id"].(float64))
-	child := f.req("POST", "/notes/pages/create", f.Token, map[string]any{"title": "Child", "parent_id": id}, 201)
+	child := fixture.req("POST", "/notes/pages/create", fixture.Token, map[string]any{"title": "Child", "parent_id": id}, 201)
 	childID := int64(child["id"].(float64))
-	var p, c models.Page
-	if err := f.s.DB.First(&p, id).Error; err != nil {
-		t.Fatal(err)
+	var parentPage, childPage models.Page
+	if err := fixture.s.DB.First(&parentPage, id).Error; err != nil {
+		tester.Fatal(err)
 	}
-	if err := f.s.DB.First(&c, childID).Error; err != nil {
-		t.Fatal(err)
+	if err := fixture.s.DB.First(&childPage, childID).Error; err != nil {
+		tester.Fatal(err)
 	}
-	if p.Lft != 1 || p.Rght != 4 || c.Lft != 2 || c.Rght != 3 || c.Level != 1 || p.TreeID != c.TreeID {
-		t.Fatal(p, c)
+	if parentPage.Lft != 1 || parentPage.Rght != 4 || childPage.Lft != 2 || childPage.Rght != 3 || childPage.Level != 1 || childPage.TreeID != parentPage.TreeID {
+		tester.Fatal(parentPage, childPage)
 	}
-	f.req("DELETE", fmt.Sprintf("/notes/pages/%d/delete", childID), f.Token, nil, 200)
-	if err := f.s.DB.First(&p, id).Error; err != nil {
-		t.Fatal(err)
+	fixture.req("DELETE", fmt.Sprintf("/notes/pages/%d/delete", childID), fixture.Token, nil, 200)
+	if err := fixture.s.DB.First(&parentPage, id).Error; err != nil {
+		tester.Fatal(err)
 	}
-	if p.Rght != 2 {
-		t.Fatal(p)
+	if parentPage.Rght != 2 {
+		tester.Fatal(parentPage)
 	}
 }

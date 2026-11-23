@@ -23,95 +23,99 @@ import (
 
 type Server struct {
 	Operations
-	DB     *gorm.DB
-	Config config.Config
-	Hub    *Hub
-	Client *http.Client
-	Router chi.Router
+	DB	*gorm.DB
+	Config	config.Config
+	Hub	*Hub
+	Client	*http.Client
+	Router	chi.Router
 }
 type Endpoint func(*Request) any
 type Request struct {
-	S      *Server
-	W      http.ResponseWriter
-	R      *http.Request
-	User   *models.User
-	Status int
-	body   map[string]any
+	S	*Server
+	W	http.ResponseWriter
+	R	*http.Request
+	User	*models.User
+	Status	int
+	body	map[string]any
 }
 type Error struct {
-	Code    int
-	Message string
+	Code	int
+	Message	string
 }
 
-func Fail(code int, msg string) { panic(Error{code, msg}) }
-func Check(e error) {
-	if e != nil {
-		if errors.Is(e, gorm.ErrRecordNotFound) {
+func Fail(code int, msg string)	{ panic(Error{code, msg}) }
+func Check(err error) {
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			Fail(404, "Not found")
 		}
-		if errors.Is(e, gorm.ErrForeignKeyViolated) {
+		if errors.Is(err, gorm.ErrForeignKeyViolated) {
 			Fail(400, "Invalid related resource")
 		}
-		if errors.Is(e, gorm.ErrDuplicatedKey) {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			Fail(409, "Already exists")
 		}
-		panic(e)
+		panic(err)
 	}
 }
-func NewServer(db *gorm.DB, c config.Config) *Server {
-	s := &Server{DB: db, Config: c, Hub: NewHub(), Client: &http.Client{Timeout: 30 * time.Second}}
-	if c.RedisURL != "" {
-		if e := s.Hub.ConnectRedis(c.RedisURL); e != nil {
-			panic(fmt.Errorf("Redis: %w", e))
+func NewServer(db *gorm.DB, appConfig config.Config) *Server {
+	server := &Server{DB: db, Config: appConfig, Hub: NewHub(), Client: &http.Client{Timeout: 30 * time.Second}}
+	if appConfig.RedisURL != "" {
+		if err := server.Hub.ConnectRedis(appConfig.RedisURL); err != nil {
+			panic(fmt.Errorf("Redis: %w", err))
 		}
 	}
-	r := chi.NewRouter()
-	s.Router = r
-	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: c.Origins,
-		AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+	router := chi.NewRouter()
+	server.Router = router
+	router.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins:	appConfig.Origins,
+		AllowedMethods:	[]string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		// The deployed frontend's search client sends a numeric header named "0".
-		AllowedHeaders:   []string{"0", "Accept-Version", "Authorization", "Content-Type", "User-Agent"},
-		AllowCredentials: true,
-		MaxAge:           300,
+		AllowedHeaders:		[]string{"0", "Accept-Version", "Authorization", "Content-Type", "User-Agent"},
+		AllowCredentials:	true,
+		MaxAge:			300,
 	}))
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path != "/" {
-				r.URL.Path = strings.TrimRight(r.URL.Path, "/")
+	router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(writer http.ResponseWriter, httpReq *http.Request) {
+			if httpReq.URL.Path != "/" {
+				httpReq.URL.Path = strings.TrimRight(httpReq.URL.Path, "/")
 			}
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(writer, httpReq)
 		})
 	})
 
-	s.Router.NotFound(func(w http.ResponseWriter, r *http.Request) { Write(w, 404, map[string]any{"error": "Not found"}) })
-	s.Router.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
-		Write(w, 405, map[string]any{"error": "Method not allowed"})
+	server.Router.NotFound(func(writer http.ResponseWriter, httpReq *http.Request) {
+		Write(writer, 404, map[string]any{"error": "Not found"})
 	})
-	return s
+	server.Router.MethodNotAllowed(func(writer http.ResponseWriter, httpReq *http.Request) {
+		Write(writer, 405, map[string]any{"error": "Method not allowed"})
+	})
+	return server
 }
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) { s.Router.ServeHTTP(w, r) }
-func (s *Server) Route(methods, path string, auth bool, fn Endpoint) {
+func (server *Server) ServeHTTP(writer http.ResponseWriter, httpReq *http.Request) {
+	server.Router.ServeHTTP(writer, httpReq)
+}
+func (server *Server) Route(methods, path string, auth bool, fn Endpoint) {
 	for _, method := range strings.Split(methods, ",") {
-		s.Router.MethodFunc(method, path, func(w http.ResponseWriter, r *http.Request) {
+		server.Router.MethodFunc(method, path, func(writer http.ResponseWriter, httpReq *http.Request) {
 			defer func() {
-				if v := recover(); v != nil {
-					switch e := v.(type) {
+				if recovered := recover(); recovered != nil {
+					switch err := recovered.(type) {
 					case Error:
-						Write(w, e.Code, map[string]any{"error": e.Message})
+						Write(writer, err.Code, map[string]any{"error": err.Message})
 					default:
-						slog.Error("request failed", "method", r.Method, "path", r.URL.Path, "error", fmt.Sprint(v))
-						Write(w, 500, map[string]any{"error": "Internal server error"})
+						slog.Error("request failed", "method", httpReq.Method, "path", httpReq.URL.Path, "error", fmt.Sprint(recovered))
+						Write(writer, 500, map[string]any{"error": "Internal server error"})
 					}
 				}
 			}()
-			q := &Request{S: s, W: w, R: r, Status: 200}
-			if r.Header.Get("Authorization") == "" && r.Method != "GET" && r.Method != "HEAD" {
-				if _, err := r.Cookie("access_token"); err == nil {
+			req := &Request{S: server, W: writer, R: httpReq, Status: 200}
+			if httpReq.Header.Get("Authorization") == "" && httpReq.Method != "GET" && httpReq.Method != "HEAD" {
+				if _, err := httpReq.Cookie("access_token"); err == nil {
 					allowed := false
-					for _, origin := range s.Config.Origins {
-						if origin == r.Header.Get("Origin") {
+					for _, origin := range server.Config.Origins {
+						if origin == httpReq.Header.Get("Origin") {
 							allowed = true
 						}
 					}
@@ -120,166 +124,174 @@ func (s *Server) Route(methods, path string, auth bool, fn Endpoint) {
 					}
 				}
 			}
-			q.User = s.Authenticate(r)
-			if auth && q.User == nil {
+			req.User = server.Authenticate(httpReq)
+			if auth && req.User == nil {
 				Fail(401, "Authentication required")
 			}
 			defer func() {
-				if r.MultipartForm != nil {
-					_ = r.MultipartForm.RemoveAll()
+				if httpReq.MultipartForm != nil {
+					_ = httpReq.MultipartForm.RemoveAll()
 				}
 			}()
-			out := fn(q)
-			if q.Status != 0 {
-				Write(w, q.Status, out)
+			out := fn(req)
+			if req.Status != 0 {
+				Write(writer, req.Status, out)
 			}
 		})
 	}
 }
-func Write(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(code)
+func Write(writer http.ResponseWriter, code int, value any) {
+	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+	writer.WriteHeader(code)
 	if code != 204 {
-		_ = json.NewEncoder(w).Encode(v)
+		_ = json.NewEncoder(writer).Encode(value)
 	}
 }
-func (q *Request) Body() map[string]any {
-	if q.body != nil {
-		return q.body
+func (req *Request) Body() map[string]any {
+	if req.body != nil {
+		return req.body
 	}
-	if strings.HasPrefix(q.R.Header.Get("Content-Type"), "multipart/form-data") || strings.HasPrefix(q.R.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
-		q.R.Body = http.MaxBytesReader(q.W, q.R.Body, 64<<20)
-		if strings.HasPrefix(q.R.Header.Get("Content-Type"), "multipart/") {
-			if q.R.ParseMultipartForm(8<<20) != nil {
+	if strings.HasPrefix(req.R.Header.Get("Content-Type"), "multipart/form-data") || strings.HasPrefix(req.R.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
+		req.R.Body = http.MaxBytesReader(req.W, req.R.Body, 64<<20)
+		if strings.HasPrefix(req.R.Header.Get("Content-Type"), "multipart/") {
+			if req.R.ParseMultipartForm(8<<20) != nil {
 				Fail(400, "Invalid multipart request")
 			}
 		} else {
-			if q.R.ParseForm() != nil {
+			if req.R.ParseForm() != nil {
 				Fail(400, "Invalid form")
 			}
 		}
-		q.body = map[string]any{}
-		for key, values := range q.R.PostForm {
+		req.body = map[string]any{}
+		for key, values := range req.R.PostForm {
 			if len(values) == 0 {
 				continue
 			}
 			if strings.HasSuffix(key, "_ids") || key == "attachments" {
 				if len(values) > 1 {
 					list := []any{}
-					for _, v := range values {
-						list = append(list, v)
+					for _, value := range values {
+						list = append(list, value)
 					}
-					q.body[key] = list
+					req.body[key] = list
 				} else {
 					var list []any
 					if json.Unmarshal([]byte(values[0]), &list) != nil {
-						for _, v := range strings.Split(values[0], ",") {
-							list = append(list, strings.TrimSpace(v))
+						for _, value := range strings.Split(values[0], ",") {
+							list = append(list, strings.TrimSpace(value))
 						}
 					}
-					q.body[key] = list
+					req.body[key] = list
 				}
 			} else {
-				q.body[key] = values[0]
+				req.body[key] = values[0]
 			}
 		}
-		return q.body
+		return req.body
 	}
-	q.R.Body = http.MaxBytesReader(q.W, q.R.Body, 4<<20)
-	d := json.NewDecoder(q.R.Body)
-	d.UseNumber()
-	if e := d.Decode(&q.body); e != nil || q.body == nil {
+	req.R.Body = http.MaxBytesReader(req.W, req.R.Body, 4<<20)
+	decoder := json.NewDecoder(req.R.Body)
+	decoder.UseNumber()
+	if err := decoder.Decode(&req.body); err != nil || req.body == nil {
 		Fail(400, "Invalid JSON object")
 	}
 	var tail any
-	if d.Decode(&tail) != io.EOF {
+	if decoder.Decode(&tail) != io.EOF {
 		Fail(400, "Invalid JSON")
 	}
-	return q.body
+	return req.body
 }
-func (q *Request) ID(key string) int64 {
-	v, e := strconv.ParseInt(chi.URLParam(q.R, key), 10, 64)
-	if e != nil || v <= 0 {
+func (req *Request) ID(key string) int64 {
+	parsed, err := strconv.ParseInt(chi.URLParam(req.R, key), 10, 64)
+	if err != nil || parsed <= 0 {
 		Fail(400, "Invalid ID")
 	}
-	return v
+	return parsed
 }
-func (q *Request) Param(k string) string { return chi.URLParam(q.R, k) }
-func (q *Request) Admin() {
-	if q.User == nil || !q.User.IsSuperuser {
+func (req *Request) Param(key string) string	{ return chi.URLParam(req.R, key) }
+func (req *Request) Admin() {
+	if req.User == nil || !req.User.IsSuperuser {
 		Fail(403, "Forbidden")
 	}
 }
-func (q *Request) Tx(fn func(*gorm.DB) error) { Check(q.S.DB.Transaction(fn)) }
-func Ptr[T any](v T) *T                       { return &v }
-func Val[T any](v *T) (z T) {
-	if v != nil {
-		return *v
+func (req *Request) Tx(fn func(*gorm.DB) error)	{ Check(req.S.DB.Transaction(fn)) }
+func Ptr[Model any](value Model) *Model		{ return &value }
+func Val[Model any](ptr *Model) (value Model) {
+	if ptr != nil {
+		return *ptr
 	}
 	return
 }
-func Str(v any) string {
-	if v == nil {
+func Str(value any) string {
+	if value == nil {
 		return ""
 	}
-	return fmt.Sprint(v)
+	return fmt.Sprint(value)
 }
-func Num(v any) int64 {
-	i, e := strconv.ParseInt(Str(v), 10, 64)
-	if e != nil {
+func Num(value any) int64 {
+	parsed, err := strconv.ParseInt(Str(value), 10, 64)
+	if err != nil {
 		Fail(400, "Expected an integer")
 	}
-	return i
+	return parsed
 }
-func Boolean(v any) bool {
-	b, ok := v.(bool)
+func Boolean(value any) bool {
+	flag, ok := value.(bool)
 	if !ok {
 		Fail(400, "Expected a boolean")
 	}
-	return b
+	return flag
 }
-func IDs(v any) []int64 {
-	if v == nil {
+func IDs(value any) []int64 {
+	if value == nil {
 		return []int64{}
 	}
-	a, ok := v.([]any)
+	items, ok := value.([]any)
 	if !ok {
 		Fail(400, "Expected an array")
 	}
-	r := []int64{}
-	for _, x := range a {
-		n := Num(x)
-		if n <= 0 {
+	ids := []int64{}
+	for _, item := range items {
+		parsed := Num(item)
+		if parsed <= 0 {
 			Fail(400, "Invalid ID")
 		}
-		r = append(r, n)
+		ids = append(ids, parsed)
 	}
-	return r
+	return ids
 }
 func Token() string {
-	b := make([]byte, 24)
-	_, e := rand.Read(b)
-	Check(e)
-	return hex.EncodeToString(b)
+	raw := make([]byte, 24)
+	_, err := rand.Read(raw)
+	Check(err)
+	return hex.EncodeToString(raw)
 }
-func Object(v any) map[string]any {
-	b, e := json.Marshal(v)
-	Check(e)
+func Object(value any) map[string]any {
+	encoded, err := json.Marshal(value)
+	Check(err)
 	var out map[string]any
-	Check(json.Unmarshal(b, &out))
+	Check(json.Unmarshal(encoded, &out))
 	return out
 }
-func Get[T any](db *gorm.DB, id any) T { var v T; Check(db.First(&v, "id = ?", id).Error); return v }
-func All[T any](db *gorm.DB) []T       { v := []T{}; Check(db.Find(&v).Error); return v }
-func (q *Request) Page(db *gorm.DB, dst any, serialize func(any) any) any {
-	return q.PageSize(db, dst, serialize, 10)
+func Get[Model any](db *gorm.DB, id any) Model {
+	var result Model
+	Check(db.First(&result, "id = ?", id).Error)
+	return result
 }
-func (q *Request) PageSize(db *gorm.DB, dst any, serialize func(any) any, defaultSize int) any {
-	page, _ := strconv.Atoi(q.R.URL.Query().Get("page"))
+func All[Model any](db *gorm.DB) []Model {
+	results := []Model{}
+	Check(db.Find(&results).Error)
+	return results
+}
+func (req *Request) Page(db *gorm.DB, dst any, serialize func(any) any) any {
+	return req.PageSize(db, dst, serialize, 10)
+}
+func (req *Request) PageSize(db *gorm.DB, dst any, serialize func(any) any, defaultSize int) any {
+	page, _ := strconv.Atoi(req.R.URL.Query().Get("page"))
 	if page < 1 {
 		page = 1
 	}
-	size, _ := strconv.Atoi(q.R.URL.Query().Get("page_size"))
+	size, _ := strconv.Atoi(req.R.URL.Query().Get("page_size"))
 	if size < 1 {
 		size = defaultSize
 	}

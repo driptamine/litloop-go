@@ -5,15 +5,15 @@ import (
 	"litloop/backend/internal/models"
 )
 
-func (s *Handler) AlbumJSON(a models.Album) any {
-	o := Object(a)
-	o["pk"] = a.ID
-	o["id"] = a.AlbumURI
-	o["images"] = All[models.Image](s.DB.Where("album_id = ?", a.ID))
+func (handler *Handler) AlbumJSON(album models.Album) any {
+	out := Object(album)
+	out["pk"] = album.ID
+	out["id"] = album.AlbumURI
+	out["images"] = All[models.Image](handler.DB.Where("album_id = ?", album.ID))
 	artists := []any{}
-	for _, artist := range All[models.Artist](s.DB.Where("id IN (?)", s.DB.Model(&models.AlbumArtist{}).Select("artist_id").Where("album_id = ?", a.ID))) {
-		artists = append(artists, s.ArtistJSON(artist))
+	for _, artist := range All[models.Artist](handler.DB.Where("id IN (?)", handler.DB.Model(&models.AlbumArtist{}).Select("artist_id").Where("album_id = ?", album.ID))) {
+		artists = append(artists, handler.ArtistJSON(artist))
 	}
-	o["artists"] = artists
-	return o
+	out["artists"] = artists
+	return out
 }

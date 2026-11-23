@@ -8,49 +8,49 @@ import (
 	"gorm.io/gorm"
 )
 
-func (s *Handler) BlockWrite(q *Request) any {
-	var b models.Block
-	creating := q.Param("block") == ""
+func (handler *Handler) BlockWrite(req *Request) any {
+	var block models.Block
+	creating := req.Param("block") == ""
 	if creating {
-		p := s.OwnedPage(q, q.ID("id"))
-		if p.IsLocked {
+		page := handler.OwnedPage(req, req.ID("id"))
+		if page.IsLocked {
 			Fail(409, "Page is locked")
 		}
-		b = models.Block{PageID: p.ID, Type: "text"}
+		block = models.Block{PageID: page.ID, Type: "text"}
 	} else {
-		b = Get[models.Block](s.DB, q.ID("block"))
-		p := s.OwnedPage(q, b.PageID)
-		if p.IsLocked {
+		block = Get[models.Block](handler.DB, req.ID("block"))
+		page := handler.OwnedPage(req, block.PageID)
+		if page.IsLocked {
 			Fail(409, "Page is locked")
 		}
 	}
-	if q.R.Method == "DELETE" {
-		q.Tx(func(tx *gorm.DB) error { return DeleteRecord(tx, "notes_block", b.ID) })
+	if req.R.Method == "DELETE" {
+		req.Tx(func(tx *gorm.DB) error { return DeleteRecord(tx, "notes_block", block.ID) })
 		return map[string]any{"message": "Block deleted"}
 	}
-	data := q.Body()
-	tableOnly := strings.HasSuffix(q.R.URL.Path, "/table")
-	if tableOnly && b.Type != "table" {
+	data := req.Body()
+	tableOnly := strings.HasSuffix(req.R.URL.Path, "/table")
+	if tableOnly && block.Type != "table" {
 		Fail(400, "Not a table block")
 	}
-	if v, ok := data["type"]; ok {
-		b.Type = Str(v)
+	if value, ok := data["type"]; ok {
+		block.Type = Str(value)
 	}
-	if b.Type != "text" && b.Type != "table" {
+	if block.Type != "text" && block.Type != "table" {
 		Fail(400, "Invalid block type")
 	}
-	if v, ok := data["content"]; ok {
-		b.Content = Str(v)
+	if value, ok := data["content"]; ok {
+		block.Content = Str(value)
 	}
-	if v, ok := data["order"]; ok {
-		b.Order = Num(v)
-		if b.Order < 0 {
+	if value, ok := data["order"]; ok {
+		block.Order = Num(value)
+		if block.Order < 0 {
 			Fail(400, "order must be positive")
 		}
 	}
-	q.Tx(func(tx *gorm.DB) error {
-		Check(tx.Save(&b).Error)
-		if b.Type == "table" {
+	req.Tx(func(tx *gorm.DB) error {
+		Check(tx.Save(&block).Error)
+		if block.Type == "table" {
 			td := data
 			if !tableOnly {
 				if nested, ok := data["table_data"].(map[string]any); ok {
@@ -59,21 +59,21 @@ func (s *Handler) BlockWrite(q *Request) any {
 					td = map[string]any{}
 				}
 			}
-			var t models.BlockTable
-			_ = tx.First(&t, "block_id = ?", b.ID).Error
-			t.BlockID = b.ID
-			if v, ok := td["columns"]; ok {
-				t.Columns = models.AsJSON(v)
+			var table models.BlockTable
+			_ = tx.First(&table, "block_id = ?", block.ID).Error
+			table.BlockID = block.ID
+			if value, ok := td["columns"]; ok {
+				table.Columns = models.AsJSON(value)
 			}
-			if v, ok := td["rows"]; ok {
-				t.Rows = models.AsJSON(v)
+			if value, ok := td["rows"]; ok {
+				table.Rows = models.AsJSON(value)
 			}
-			return tx.Save(&t).Error
+			return tx.Save(&table).Error
 		}
 		return nil
 	})
 	if creating {
-		q.Status = 201
+		req.Status = 201
 	}
-	return s.BlockJSON(b)
+	return handler.BlockJSON(block)
 }

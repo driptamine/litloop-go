@@ -14,32 +14,32 @@ import (
 )
 
 func main() {
-	c := config.Load()
-	db, e := database.Open(c)
-	if e != nil {
-		slog.Error("database connection", "error", e)
+	appConfig := config.Load()
+	db, err := database.Open(appConfig)
+	if err != nil {
+		slog.Error("database connection", "error", err)
 		os.Exit(1)
 	}
-	if c.AutoMigrate {
-		if e = database.Migrate(db); e != nil {
-			slog.Error("migrate", "error", e)
+	if appConfig.AutoMigrate {
+		if err = database.Migrate(db); err != nil {
+			slog.Error("migrate", "error", err)
 			os.Exit(1)
 		}
 	}
-	app := api.New(db, c)
+	app := api.New(db, appConfig)
 	defer app.Hub.Close()
-	s := &http.Server{Addr: c.Addr, Handler: app, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
+	server := &http.Server{Addr: appConfig.Addr, Handler: app, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		_ = s.Shutdown(shutdown)
+		_ = server.Shutdown(shutdown)
 	}()
-	slog.Info("LitLoop listening", "addr", c.Addr)
-	if e = s.ListenAndServe(); e != nil && e != http.ErrServerClosed {
-		slog.Error("serve", "error", e)
+	slog.Info("LitLoop listening", "addr", appConfig.Addr)
+	if err = server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		slog.Error("serve", "error", err)
 		os.Exit(1)
 	}
 }

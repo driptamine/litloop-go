@@ -7,8 +7,8 @@ import (
 )
 
 type node struct {
-	ID       int64
-	ParentID *int64
+	ID		int64
+	ParentID	*int64
 }
 
 func Rebuild(tx *gorm.DB, table string) error {
@@ -33,18 +33,18 @@ func Rebuild(tx *gorm.DB, table string) error {
 	}
 	children := map[int64][]int64{}
 	known := map[int64]bool{}
-	for _, n := range rows {
-		known[n.ID] = true
+	for _, row := range rows {
+		known[row.ID] = true
 	}
-	for _, n := range rows {
+	for _, row := range rows {
 		parent := int64(0)
-		if n.ParentID != nil {
-			parent = *n.ParentID
+		if row.ParentID != nil {
+			parent = *row.ParentID
 			if !known[parent] {
-				return fmt.Errorf("orphan tree node %d", n.ID)
+				return fmt.Errorf("orphan tree node %d", row.ID)
 			}
 		}
-		children[parent] = append(children[parent], n.ID)
+		children[parent] = append(children[parent], row.ID)
 	}
 	visited := map[int64]bool{}
 	var visit func(int64, int64, int64, *int64) error
@@ -64,9 +64,9 @@ func Rebuild(tx *gorm.DB, table string) error {
 		*counter++
 		return tx.Table(table).Where("id = ?", id).Updates(map[string]any{"lft": left, "rght": right, "tree_id": treeID, "level": level}).Error
 	}
-	for i, id := range children[0] {
+	for index, id := range children[0] {
 		counter := int64(1)
-		if err := visit(id, int64(i+1), 0, &counter); err != nil {
+		if err := visit(id, int64(index+1), 0, &counter); err != nil {
 			return err
 		}
 	}

@@ -5,32 +5,32 @@ import (
 	"litloop/backend/internal/models"
 )
 
-func (s *Handler) PageJSON(p models.Page, detail bool) map[string]any {
-	o := Object(p)
+func (handler *Handler) PageJSON(page models.Page, detail bool) map[string]any {
+	out := Object(page)
 	tags := []string{}
 	tagIDs := []int64{}
-	for _, t := range All[models.PageTag](s.DB.Where("page_id = ?", p.ID).Order("name")) {
-		tags = append(tags, t.Name)
-		tagIDs = append(tagIDs, t.ID)
+	for _, tag := range All[models.PageTag](handler.DB.Where("page_id = ?", page.ID).Order("name")) {
+		tags = append(tags, tag.Name)
+		tagIDs = append(tagIDs, tag.ID)
 	}
-	o["tags"] = tags
-	o["tag_ids"] = tagIDs
+	out["tags"] = tags
+	out["tag_ids"] = tagIDs
 	if detail {
 		blocks := []any{}
-		for _, b := range All[models.Block](s.DB.Where("page_id = ?", p.ID).Order("\"order\", id")) {
-			blocks = append(blocks, s.BlockJSON(b))
+		for _, block := range All[models.Block](handler.DB.Where("page_id = ?", page.ID).Order("\"order\", id")) {
+			blocks = append(blocks, handler.BlockJSON(block))
 		}
-		o["blocks"] = blocks
+		out["blocks"] = blocks
 	}
-	return o
+	return out
 }
-func (s *Handler) BlockJSON(b models.Block) map[string]any {
-	o := Object(b)
-	if b.Type == "table" {
-		var t models.BlockTable
-		if s.DB.First(&t, "block_id = ?", b.ID).Error == nil {
-			o["table_data"] = map[string]any{"columns": t.Columns, "rows": t.Rows}
+func (handler *Handler) BlockJSON(block models.Block) map[string]any {
+	out := Object(block)
+	if block.Type == "table" {
+		var table models.BlockTable
+		if handler.DB.First(&table, "block_id = ?", block.ID).Error == nil {
+			out["table_data"] = map[string]any{"columns": table.Columns, "rows": table.Rows}
 		}
 	}
-	return o
+	return out
 }

@@ -7,10 +7,10 @@ import (
 	"gorm.io/gorm"
 )
 
-func (s *Handler) ImportLinks(q *Request) any {
-	rows := CSVRows(q)
+func (handler *Handler) ImportLinks(req *Request) any {
+	rows := CSVRows(req)
 	count := 0
-	q.Tx(func(tx *gorm.DB) error {
+	req.Tx(func(tx *gorm.DB) error {
 		for _, row := range rows {
 			uri := row["url"]
 			if uri == "" {
@@ -24,10 +24,10 @@ func (s *Handler) ImportLinks(q *Request) any {
 				tags = row["hashtags"]
 			}
 			tagList := []any{}
-			for _, t := range strings.FieldsFunc(tags, func(r rune) bool { return r == ',' || r == ';' || r == ' ' || r == '|' }) {
-				tagList = append(tagList, t)
+			for _, tag := range strings.FieldsFunc(tags, func(ch rune) bool { return ch == ',' || ch == ';' || ch == ' ' || ch == '|' }) {
+				tagList = append(tagList, tag)
 			}
-			s.SaveLink(tx, q.User.ID, map[string]any{"url": uri, "title": row["title"], "tags": tagList, "status": row["status"], "time_added": row["time_added"]})
+			handler.SaveLink(tx, req.User.ID, map[string]any{"url": uri, "title": row["title"], "tags": tagList, "status": row["status"], "time_added": row["time_added"]})
 			count++
 		}
 		return nil

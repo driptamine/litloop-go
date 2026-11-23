@@ -3,13 +3,13 @@ package authcookie
 
 import "net/http"
 
-func AccessToken(r *http.Request) string {
-	cookie, err := r.Cookie("access_token")
+func AccessToken(httpReq *http.Request) string {
+	cookie, err := httpReq.Cookie("access_token")
 	if err != nil {
 		return ""
 	}
 	return cookie.Value
 }
-func ClearAccessToken(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{Name: "access_token", Value: "", Path: "/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteLaxMode})
+func ClearAccessToken(writer http.ResponseWriter) {
+	http.SetCookie(writer, &http.Cookie{Name: "access_token", Value: "", Path: "/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 }

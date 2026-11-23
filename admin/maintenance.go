@@ -9,16 +9,16 @@ import (
 	"gorm.io/gorm"
 )
 
-func (s *Handler) Maintenance(q *Request) any {
-	q.Admin()
-	path := q.R.URL.Path
+func (handler *Handler) Maintenance(req *Request) any {
+	req.Admin()
+	path := req.R.URL.Path
 	if strings.Contains(path, "regenerate") {
-		Check(database.Migrate(s.DB))
+		Check(database.Migrate(handler.DB))
 		return map[string]any{"status": "migrated"}
 	}
-	q.Tx(func(tx *gorm.DB) error {
-		for _, m := range models.All() {
-			table := m.(interface{ TableName() string }).TableName()
+	req.Tx(func(tx *gorm.DB) error {
+		for _, model := range models.All() {
+			table := model.(interface{ TableName() string }).TableName()
 			if strings.Contains(path, "user-tables") && !strings.HasPrefix(table, "users_") {
 				continue
 			}

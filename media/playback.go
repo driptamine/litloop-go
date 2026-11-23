@@ -14,41 +14,41 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func (s *Handler) MediaServe(q *Request) any {
-	key := q.Param("*")
+func (handler *Handler) MediaServe(req *Request) any {
+	key := req.Param("*")
 	if strings.Contains(key, "..") || filepath.IsAbs(key) {
 		Fail(400, "Invalid path")
 	}
-	exp := q.R.URL.Query().Get("expires")
-	n, e := strconv.ParseInt(exp, 10, 64)
-	if e != nil || n < time.Now().Unix() || !SecureEqual(q.R.URL.Query().Get("signature"), s.SignMedia(key, exp)) {
+	exp := req.R.URL.Query().Get("expires")
+	parsed, err := strconv.ParseInt(exp, 10, 64)
+	if err != nil || parsed < time.Now().Unix() || !SecureEqual(req.R.URL.Query().Get("signature"), handler.SignMedia(key, exp)) {
 		Fail(403, "Invalid or expired media URL")
 	}
 	if key, ok := strings.CutPrefix(key, "r2/hls/"); ok && strings.HasSuffix(key, ".m3u8") {
-		return s.r2Manifest(q, "hls/"+key)
+		return handler.r2Manifest(req, "hls/"+key)
 	}
-	path := filepath.Join(s.Config.MediaDir, key)
+	path := filepath.Join(handler.Config.MediaDir, key)
 	if strings.HasSuffix(key, ".m3u8") {
 		raw, err := os.ReadFile(path)
 		if err != nil {
 			Fail(404, "Manifest not found")
 		}
 		body := manifestLines(string(raw), func(segment string) string {
-			return s.LocalURL(filepath.ToSlash(filepath.Join(filepath.Dir(key), filepath.Base(segment))))
+			return handler.LocalURL(filepath.ToSlash(filepath.Join(filepath.Dir(key), filepath.Base(segment))))
 		})
-		q.W.Header().Set("Content-Type", "application/vnd.apple.mpegurl")
-		q.Status = 0
-		_, _ = io.WriteString(q.W, body)
+		req.W.Header().Set("Content-Type", "application/vnd.apple.mpegurl")
+		req.Status = 0
+		_, _ = io.WriteString(req.W, body)
 		return nil
 	}
-	q.Status = 0
-	http.ServeFile(q.W, q.R, path)
+	req.Status = 0
+	http.ServeFile(req.W, req.R, path)
 	return nil
 }
 
-func (s *Handler) r2Manifest(q *Request, key string) any {
-	store := s.StorageFor("r2")
-	ctx := q.R.Context()
+func (handler *Handler) r2Manifest(req *Request, key string) any {
+	store := handler.StorageFor("r2")
+	ctx := req.R.Context()
 	object, err := store.Client.GetObject(ctx, &s3.GetObjectInput{Bucket: &store.Bucket, Key: &key})
 	Check(err)
 	defer object.Body.Close()
@@ -63,18 +63,18 @@ func (s *Handler) r2Manifest(q *Request, key string) any {
 		Check(err)
 		return uri
 	})
-	q.W.Header().Set("Content-Type", "application/vnd.apple.mpegurl")
-	q.W.Header().Set("Cache-Control", "private, no-store")
-	q.Status = 0
-	_, _ = io.WriteString(q.W, body)
+	req.W.Header().Set("Content-Type", "application/vnd.apple.mpegurl")
+	req.W.Header().Set("Cache-Control", "private, no-store")
+	req.Status = 0
+	_, _ = io.WriteString(req.W, body)
 	return nil
 }
 
 func manifestLines(raw string, link func(string) string) string {
 	lines := strings.Split(raw, "\n")
-	for i, l := range lines {
-		if l != "" && !strings.HasPrefix(l, "#") {
-			lines[i] = link(l)
+	for index, line := range lines {
+		if line != "" && !strings.HasPrefix(line, "#") {
+			lines[index] = link(line)
 		}
 	}
 	return strings.Join(lines, "\n")

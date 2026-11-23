@@ -23,21 +23,21 @@ func activePresence(sessions map[string]*presenceSession, now time.Time) bool {
 	return false
 }
 
-func (h *Hub) expirePresence(user int64, id string, session *presenceSession, delay time.Duration) {
+func (hub *Hub) expirePresence(user int64, id string, session *presenceSession, delay time.Duration) {
 	time.AfterFunc(delay, func() {
-		h.mu.Lock()
-		defer h.mu.Unlock()
-		sessions := h.presence[user]
+		hub.mu.Lock()
+		defer hub.mu.Unlock()
+		sessions := hub.presence[user]
 		if sessions[id] != session {
 			return
 		}
 		if remaining := time.Until(session.expires); remaining > 0 {
-			h.expirePresence(user, id, session, remaining)
+			hub.expirePresence(user, id, session, remaining)
 			return
 		}
 		delete(sessions, id)
 		if len(sessions) == 0 {
-			delete(h.presence, user)
+			delete(hub.presence, user)
 		}
 	})
 }
@@ -47,35 +47,35 @@ func presenceKey(user int64) string {
 }
 
 // SetPresence keeps one lease per authenticated notification connection.
-func (h *Hub) SetPresence(user int64, id string, connected bool, lease time.Duration) (online, changed bool) {
+func (hub *Hub) SetPresence(user int64, id string, connected bool, lease time.Duration) (online, changed bool) {
 	if lease <= 0 {
 		lease = presenceLease
 	}
 	now := time.Now()
-	h.mu.Lock()
-	sessions := h.presence[user]
+	hub.mu.Lock()
+	sessions := hub.presence[user]
 	wasOnline := activePresence(sessions, now)
 	if connected {
 		if sessions == nil {
 			sessions = make(map[string]*presenceSession)
-			h.presence[user] = sessions
+			hub.presence[user] = sessions
 		}
 		session := sessions[id]
 		if session == nil {
 			session = &presenceSession{}
 			sessions[id] = session
-			h.expirePresence(user, id, session, lease)
+			hub.expirePresence(user, id, session, lease)
 		}
 		session.expires = now.Add(lease)
 	} else {
 		delete(sessions, id)
 		if len(sessions) == 0 {
-			delete(h.presence, user)
+			delete(hub.presence, user)
 		}
 	}
 	online = activePresence(sessions, now)
-	h.mu.Unlock()
-	if h.bus == nil {
+	hub.mu.Unlock()
+	if hub.bus == nil {
 		return online, wasOnline != online
 	}
 
@@ -84,7 +84,7 @@ func (h *Hub) SetPresence(user int64, id string, connected bool, lease time.Dura
 	key := presenceKey(user)
 	cutoff := strconv.FormatInt(now.UnixMilli(), 10)
 	var before, after *redis.IntCmd
-	_, err := h.bus.client.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
+	_, err := hub.bus.client.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
 		pipe.ZRemRangeByScore(ctx, key, "-inf", cutoff)
 		before = pipe.ZCard(ctx, key)
 		if connected {
@@ -103,31 +103,31 @@ func (h *Hub) SetPresence(user int64, id string, connected bool, lease time.Dura
 	return online, (before.Val() > 0) != online
 }
 
-func (h *Hub) Presence(users []int64) map[int64]bool {
+func (hub *Hub) Presence(users []int64) map[int64]bool {
 	status := make(map[int64]bool, len(users))
-	if h.bus != nil && len(users) != 0 {
+	if hub.bus != nil && len(users) != 0 {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		cutoff := "(" + strconv.FormatInt(time.Now().UnixMilli(), 10)
 		counts := make([]*redis.IntCmd, len(users))
-		_, err := h.bus.client.Pipelined(ctx, func(pipe redis.Pipeliner) error {
-			for i, user := range users {
-				counts[i] = pipe.ZCount(ctx, presenceKey(user), cutoff, "+inf")
+		_, err := hub.bus.client.Pipelined(ctx, func(pipe redis.Pipeliner) error {
+			for index, user := range users {
+				counts[index] = pipe.ZCount(ctx, presenceKey(user), cutoff, "+inf")
 			}
 			return nil
 		})
 		if err == nil {
-			for i, user := range users {
-				status[user] = counts[i].Val() > 0
+			for index, user := range users {
+				status[user] = counts[index].Val() > 0
 			}
 			return status
 		}
 	}
-	h.mu.RLock()
-	defer h.mu.RUnlock()
+	hub.mu.RLock()
+	defer hub.mu.RUnlock()
 	now := time.Now()
 	for _, user := range users {
-		status[user] = activePresence(h.presence[user], now)
+		status[user] = activePresence(hub.presence[user], now)
 	}
 	return status
 }

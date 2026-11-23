@@ -10,9 +10,9 @@ import (
 
 var routeParam = regexp.MustCompile(`\{([^}:]+)(?::[^}]+)?\}`)
 
-func (s *Server) OpenAPI() any {
+func (server *Server) OpenAPI() any {
 	paths := map[string]any{}
-	_ = chi.Walk(s.Router, func(method, path string, h http.Handler, middlewares ...func(http.Handler) http.Handler) error {
+	_ = chi.Walk(server.Router, func(method, path string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
 		if strings.HasPrefix(path, "/ws/") {
 			return nil
 		}

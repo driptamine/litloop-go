@@ -27,12 +27,12 @@ type Store struct {
 	session *gocql.Session
 }
 
-func Open(ctx context.Context, c config.Config) (*Store, error) {
-	cluster, err := gocqlastra.NewClusterFromURL("https://api.astra.datastax.com", c.AstraDatabaseID, c.AstraToken, 5*time.Second)
+func Open(ctx context.Context, appConfig config.Config) (*Store, error) {
+	cluster, err := gocqlastra.NewClusterFromURL("https://api.astra.datastax.com", appConfig.AstraDatabaseID, appConfig.AstraToken, 5*time.Second)
 	if err != nil {
 		return nil, errors.New("could not load the Astra DB connection bundle")
 	}
-	cluster.Keyspace = c.AstraKeyspace
+	cluster.Keyspace = appConfig.AstraKeyspace
 	cluster.Timeout = 5 * time.Second
 	cluster.ConnectTimeout = 5 * time.Second
 	cluster.Consistency = gocql.LocalQuorum
@@ -47,14 +47,14 @@ func Open(ctx context.Context, c config.Config) (*Store, error) {
 	return &Store{session: session}, nil
 }
 
-func (s *Store) Close() {
-	s.session.Close()
+func (store *Store) Close() {
+	store.session.Close()
 }
 
-func (s *Store) Record(ctx context.Context, id int64, event Event) error {
+func (store *Store) Record(ctx context.Context, id int64, event Event) error {
 	at := event.OccurredAt.UTC()
 	// The task ID and time stay the same on retry, so INSERT overwrites the same row.
-	return s.session.Query(`INSERT INTO events_by_resource_day
+	return store.session.Query(`INSERT INTO events_by_resource_day
 		(resource_type, resource_id, bucket_day, occurred_at, event_id, actor_id, action)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		event.ResourceType, event.ResourceID, at.Format(time.DateOnly), at, id, event.ActorID, event.Action).

@@ -13,70 +13,70 @@ import (
 	JWT "github.com/golang-jwt/jwt/v5"
 )
 
-func hashPassword(p string) string {
-	hash, err := HashPassword(p)
+func hashPassword(password string) string {
+	hash, err := HashPassword(password)
 	if err != nil {
 		Fail(400, err.Error())
 	}
 	return hash
 }
-func verifyPassword(hash, password string) bool { return VerifyPassword(hash, password) }
-func (s *Handler) JWT(user int64, kind string, ttl time.Duration) string {
+func verifyPassword(hash, password string) bool	{ return VerifyPassword(hash, password) }
+func (handler *Handler) JWT(user int64, kind string, ttl time.Duration) string {
 	now := time.Now()
-	t := JWT.NewWithClaims(JWT.SigningMethodHS256, JWT.MapClaims{"user_id": user, "token_type": kind, "iat": now.Unix(), "exp": now.Add(ttl).Unix(), "jti": Token()})
-	v, e := t.SignedString([]byte(s.Config.JWTSecret))
-	Check(e)
-	return v
+	jwtToken := JWT.NewWithClaims(JWT.SigningMethodHS256, JWT.MapClaims{"user_id": user, "token_type": kind, "iat": now.Unix(), "exp": now.Add(ttl).Unix(), "jti": Token()})
+	token, err := jwtToken.SignedString([]byte(handler.Config.JWTSecret))
+	Check(err)
+	return token
 }
-func (s *Handler) Claims(raw string, kind string) JWT.MapClaims {
-	t, e := JWT.Parse(raw, func(t *JWT.Token) (any, error) { return []byte(s.Config.JWTSecret), nil }, JWT.WithValidMethods([]string{"HS256"}), JWT.WithExpirationRequired())
-	if e != nil || !t.Valid {
+func (handler *Handler) Claims(raw string, kind string) JWT.MapClaims {
+	parsedToken, err := JWT.Parse(raw, func(parsedToken *JWT.Token) (any, error) { return []byte(handler.Config.JWTSecret), nil }, JWT.WithValidMethods([]string{"HS256"}), JWT.WithExpirationRequired())
+	if err != nil || !parsedToken.Valid {
 		return nil
 	}
-	c, ok := t.Claims.(JWT.MapClaims)
+	claims, ok := parsedToken.Claims.(JWT.MapClaims)
 	if !ok {
 		return nil
 	}
-	if typ := Str(c["token_type"]); typ != "" && typ != kind {
+	if typ := Str(claims["token_type"]); typ != "" && typ != kind {
 		return nil
 	}
-	if kind == "refresh" && Str(c["token_type"]) != "refresh" {
+	if kind == "refresh" && Str(claims["token_type"]) != "refresh" {
 		return nil
 	}
-	var n int64
-	if jti := Str(c["jti"]); jti != "" {
-		if s.DB.Model(&models.RevokedToken{}).Where("id = ?", jti).Count(&n).Error != nil || n > 0 {
+	var count int64
+	if jti := Str(claims["jti"]); jti != "" {
+		if handler.DB.Model(&models.RevokedToken{}).Where("id = ?", jti).Count(&count).Error != nil || count > 0 {
 			return nil
 		}
 	}
-	return c
+	return claims
 }
-func (s *Handler) Authenticate(r *http.Request) *models.User {
-	raw := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+func (handler *Handler) Authenticate(httpReq *http.Request) *models.User {
+	raw := strings.TrimPrefix(httpReq.Header.Get("Authorization"), "Bearer ")
 	if raw == "" {
-		raw = authcookie.AccessToken(r)
+		raw = authcookie.AccessToken(httpReq)
 	}
-	if raw == "" && strings.HasPrefix(r.URL.Path, "/ws/") {
-		raw = r.URL.Query().Get("token")
+	if raw == "" && strings.HasPrefix(httpReq.URL.Path, "/ws/") {
+		raw = httpReq.URL.Query().Get("token")
 	}
 	if raw == "" {
 		return nil
 	}
-	Claims := s.Claims(raw, "access")
+	Claims := handler.Claims(raw, "access")
 	if Claims == nil {
 		return nil
 	}
-	id, e := strconv.ParseInt(fmt.Sprint(Claims["user_id"]), 10, 64)
-	if e != nil {
+	id, err := strconv.ParseInt(fmt.Sprint(Claims["user_id"]), 10, 64)
+	if err != nil {
 		return nil
 	}
-	var u models.User
-	if s.DB.Where("id = ? AND is_active = ?", id, true).First(&u).Error != nil {
+	var user models.User
+	if handler.DB.Where("id = ? AND is_active = ?", id, true).First(&user).Error != nil {
 		return nil
 	}
-	return &u
+	return &user
 }
-func (s *Handler) Tokens(u models.User) map[string]any {
-	access := s.JWT(u.ID, "access", s.Config.AccessTTL)
-	return map[string]any{"user": PublicUser(u), "token": access, "access": access, "refresh": s.JWT(u.ID, "refresh", s.Config.RefreshTTL)}
+func (handler *Handler) Tokens(user models.User) map[string]any {
+	access := handler.JWT(user.ID, "access", handler.Config.AccessTTL)
+	return map[string]any{"user": PublicUser(user), "token": access, "access": access, "refresh": handler.JWT(user.ID, "refresh", handler.Config.RefreshTTL)}
 }

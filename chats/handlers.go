@@ -10,141 +10,141 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func (s *Handler) ChatList(q *Request) any {
-	db := s.DB.Where("id IN (?)", s.DB.Model(&models.ChatParticipant{}).Select("chat_id").Where("user_id = ?", q.User.ID))
-	if strings.HasSuffix(q.R.URL.Path, "/direct") {
+func (handler *Handler) ChatList(req *Request) any {
+	db := handler.DB.Where("id IN (?)", handler.DB.Model(&models.ChatParticipant{}).Select("chat_id").Where("user_id = ?", req.User.ID))
+	if strings.HasSuffix(req.R.URL.Path, "/direct") {
 		db = db.Where("chat_type = ? AND is_saved_messages = ?", "direct", false)
-	} else if strings.HasSuffix(q.R.URL.Path, "/group") {
+	} else if strings.HasSuffix(req.R.URL.Path, "/group") {
 		db = db.Where("chat_type = ?", "groupchat")
 	}
 	chats := All[models.Chat](db.Order("(SELECT MAX(created_at) FROM chats_message WHERE chat_id = chats_chat.id) DESC NULLS LAST"))
-	preloads := s.loadChatPreload(chats, q.User.ID, false)
+	preloads := handler.loadChatPreload(chats, req.User.ID, false)
 	out := []any{}
-	for _, c := range chats {
-		out = append(out, s.chatJSONWith(c, q.User.ID, false, preloads[c.ID]))
+	for _, chat := range chats {
+		out = append(out, handler.chatJSONWith(chat, req.User.ID, false, preloads[chat.ID]))
 	}
 	return map[string]any{"chats": out}
 }
 
-func (s *Handler) MessagesAfter(q *Request) any {
-	chat := s.ChatAccess(q, q.ID("id"))
+func (handler *Handler) MessagesAfter(req *Request) any {
+	chat := handler.ChatAccess(req, req.ID("id"))
 	var after int64
-	if value := q.R.URL.Query().Get("after"); value != "" {
+	if value := req.R.URL.Query().Get("after"); value != "" {
 		after = Num(value)
 	}
 	const pageSize = 200
-	rows := All[models.Message](s.DB.Where("chat_id = ? AND id > ?", chat.ID, after).Order("id ASC").Limit(pageSize + 1))
+	rows := All[models.Message](handler.DB.Where("chat_id = ? AND id > ?", chat.ID, after).Order("id ASC").Limit(pageSize + 1))
 	hasMore := len(rows) > pageSize
 	if hasMore {
 		rows = rows[:pageSize]
 	}
-	return map[string]any{"messages": s.messagesJSON(rows), "has_more": hasMore}
+	return map[string]any{"messages": handler.messagesJSON(rows), "has_more": hasMore}
 }
-func (s *Handler) DirectChat(q *Request) any {
-	saved := strings.HasSuffix(q.R.URL.Path, "/saved")
-	target := q.User.ID
+func (handler *Handler) DirectChat(req *Request) any {
+	saved := strings.HasSuffix(req.R.URL.Path, "/saved")
+	target := req.User.ID
 	if !saved {
-		target = q.ID("user")
-		Get[models.User](s.DB, target)
-		if target == q.User.ID {
+		target = req.ID("user")
+		Get[models.User](handler.DB, target)
+		if target == req.User.ID {
 			Fail(400, "You cannot chat with yourself")
 		}
 	}
-	lo, hi := q.User.ID, target
+	lo, hi := req.User.ID, target
 	if lo > hi {
 		lo, hi = hi, lo
 	}
 	name := fmt.Sprintf("dm-%d-%d", lo, hi)
 	if saved {
-		name = fmt.Sprintf("saved-%d", q.User.ID)
+		name = fmt.Sprintf("saved-%d", req.User.ID)
 	}
-	var c models.Chat
-	q.Tx(func(tx *gorm.DB) error {
+	var chat models.Chat
+	req.Tx(func(tx *gorm.DB) error {
 		var lock models.User
 		Check(tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&lock, lo).Error)
-		e := tx.First(&c, "name = ? AND chat_type = ?", name, "direct").Error
-		if e == nil {
+		err := tx.First(&chat, "name = ? AND chat_type = ?", name, "direct").Error
+		if err == nil {
 			return nil
 		}
-		if e != gorm.ErrRecordNotFound {
-			return e
+		if err != gorm.ErrRecordNotFound {
+			return err
 		}
-		c = models.Chat{ChatType: "direct", Name: name, IsSavedMessages: saved}
-		Check(tx.Create(&c).Error)
-		Check(tx.Create(&models.ChatParticipant{ChatID: c.ID, UserID: q.User.ID}).Error)
+		chat = models.Chat{ChatType: "direct", Name: name, IsSavedMessages: saved}
+		Check(tx.Create(&chat).Error)
+		Check(tx.Create(&models.ChatParticipant{ChatID: chat.ID, UserID: req.User.ID}).Error)
 		if !saved {
-			return tx.Create(&models.ChatParticipant{ChatID: c.ID, UserID: target}).Error
+			return tx.Create(&models.ChatParticipant{ChatID: chat.ID, UserID: target}).Error
 		}
 		return nil
 	})
-	return s.ChatJSON(c, q.User.ID, true)
+	return handler.ChatJSON(chat, req.User.ID, true)
 }
-func (s *Handler) CreateGroup(q *Request) any {
-	b := q.Body()
-	name := strings.TrimSpace(Str(b["name"]))
+func (handler *Handler) CreateGroup(req *Request) any {
+	body := req.Body()
+	name := strings.TrimSpace(Str(body["name"]))
 	if name == "" {
 		Fail(400, "name is required")
 	}
-	c := models.Chat{ChatType: "groupchat", Name: Truncate(name, 20), Description: Str(b["description"]), ImageURL: Str(b["image_url"])}
-	list := IDs(b["participant_ids"])
-	q.Tx(func(tx *gorm.DB) error {
-		Check(tx.Create(&c).Error)
-		list = append(list, q.User.ID)
+	chat := models.Chat{ChatType: "groupchat", Name: Truncate(name, 20), Description: Str(body["description"]), ImageURL: Str(body["image_url"])}
+	list := IDs(body["participant_ids"])
+	req.Tx(func(tx *gorm.DB) error {
+		Check(tx.Create(&chat).Error)
+		list = append(list, req.User.ID)
 		for _, id := range list {
 			Get[models.User](tx, id)
-			Check(tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&models.ChatParticipant{ChatID: c.ID, UserID: id}).Error)
+			Check(tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&models.ChatParticipant{ChatID: chat.ID, UserID: id}).Error)
 		}
 		return nil
 	})
-	q.Status = 201
-	return map[string]any{"status": "created", "chat": s.ChatJSON(c, q.User.ID, false)}
+	req.Status = 201
+	return map[string]any{"status": "created", "chat": handler.ChatJSON(chat, req.User.ID, false)}
 }
-func (s *Handler) GroupMember(q *Request) any {
-	c := s.ChatAccess(q, q.ID("id"))
-	if c.ChatType != "groupchat" {
+func (handler *Handler) GroupMember(req *Request) any {
+	chat := handler.ChatAccess(req, req.ID("id"))
+	if chat.ChatType != "groupchat" {
 		Fail(400, "Not a group chat")
 	}
-	id := Num(q.Body()["user_id"])
-	u := Get[models.User](s.DB, id)
+	id := Num(req.Body()["user_id"])
+	user := Get[models.User](handler.DB, id)
 	status := "added"
-	if strings.HasSuffix(q.R.URL.Path, "/remove") {
-		Check(s.DB.Where("chat_id = ? AND user_id = ?", c.ID, id).Delete(&models.ChatParticipant{}).Error)
+	if strings.HasSuffix(req.R.URL.Path, "/remove") {
+		Check(handler.DB.Where("chat_id = ? AND user_id = ?", chat.ID, id).Delete(&models.ChatParticipant{}).Error)
 		status = "removed"
 	} else {
-		Check(s.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&models.ChatParticipant{ChatID: c.ID, UserID: id}).Error)
+		Check(handler.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&models.ChatParticipant{ChatID: chat.ID, UserID: id}).Error)
 	}
-	return map[string]any{"status": status, "user_id": id, "username": u.Username}
+	return map[string]any{"status": status, "user_id": id, "username": user.Username}
 }
-func (s *Handler) ChatAction(q *Request) any {
-	c := s.ChatAccess(q, q.ID("id"))
-	if strings.HasSuffix(q.R.URL.Path, "/delete") {
-		if c.IsSavedMessages {
+func (handler *Handler) ChatAction(req *Request) any {
+	chat := handler.ChatAccess(req, req.ID("id"))
+	if strings.HasSuffix(req.R.URL.Path, "/delete") {
+		if chat.IsSavedMessages {
 			Fail(400, "Saved messages cannot be deleted")
 		}
-		if c.ChatType == "direct" {
-			q.Tx(func(tx *gorm.DB) error { return DeleteRecord(tx, "chats_chat", c.ID) })
+		if chat.ChatType == "direct" {
+			req.Tx(func(tx *gorm.DB) error { return DeleteRecord(tx, "chats_chat", chat.ID) })
 		} else {
-			Check(s.DB.Where("chat_id = ? AND user_id = ?", c.ID, q.User.ID).Delete(&models.ChatParticipant{}).Error)
+			Check(handler.DB.Where("chat_id = ? AND user_id = ?", chat.ID, req.User.ID).Delete(&models.ChatParticipant{}).Error)
 		}
-		return map[string]any{"status": "deleted", "id": c.ID}
+		return map[string]any{"status": "deleted", "id": chat.ID}
 	}
 	var messages []models.Message
-	Check(s.DB.Model(&messages).Clauses(clause.Returning{Columns: []clause.Column{{Name: "id"}}}).
-		Where("chat_id = ? AND (user_id <> ? OR user_id IS NULL) AND is_read = ?", c.ID, q.User.ID, false).
+	Check(handler.DB.Model(&messages).Clauses(clause.Returning{Columns: []clause.Column{{Name: "id"}}}).
+		Where("chat_id = ? AND (user_id <> ? OR user_id IS NULL) AND is_read = ?", chat.ID, req.User.ID, false).
 		Update("is_read", true).Error)
 	if len(messages) > 0 {
 		ids := make([]int64, 0, len(messages))
-		for _, m := range messages {
-			ids = append(ids, m.ID)
+		for _, messageID := range messages {
+			ids = append(ids, messageID.ID)
 		}
-		s.Hub.Broadcast(fmt.Sprint(c.ID), map[string]any{"type": "read_receipt", "read_by": q.User.ID, "message_ids": ids})
+		handler.Hub.Broadcast(fmt.Sprint(chat.ID), map[string]any{"type": "read_receipt", "read_by": req.User.ID, "message_ids": ids})
 	}
-	s.Hub.Broadcast("user:"+fmt.Sprint(q.User.ID), map[string]any{
-		"type": "unread_update", "chat_id": c.ID, "unread_count": s.UnreadMessages(q.User.ID),
+	handler.Hub.Broadcast("user:"+fmt.Sprint(req.User.ID), map[string]any{
+		"type":	"unread_update", "chat_id": chat.ID, "unread_count": handler.UnreadMessages(req.User.ID),
 	})
-	return map[string]any{"status": "success", "chat_id": c.ID}
+	return map[string]any{"status": "success", "chat_id": chat.ID}
 }
-func (s *Handler) SendMessage(q *Request) any {
-	m := s.SaveMessage(q.ID("id"), *q.User, q.Body())
-	return map[string]any{"status": "sent", "chat_id": q.ID("id"), "message": s.MessageJSON(m)}
+func (handler *Handler) SendMessage(req *Request) any {
+	message := handler.SaveMessage(req.ID("id"), *req.User, req.Body())
+	return map[string]any{"status": "sent", "chat_id": req.ID("id"), "message": handler.MessageJSON(message)}
 }

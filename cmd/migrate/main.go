@@ -7,12 +7,12 @@ import (
 )
 
 func main() {
-	db, e := database.Open(config.Load())
-	if e != nil {
-		log.Fatal(e)
+	db, err := database.Open(config.Load())
+	if err != nil {
+		log.Fatal(err)
 	}
-	if e = database.Migrate(db); e != nil {
-		log.Fatal(e)
+	if err = database.Migrate(db); err != nil {
+		log.Fatal(err)
 	}
 	log.Print("Schema migrated")
 }

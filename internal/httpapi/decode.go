@@ -12,69 +12,69 @@ import (
 )
 
 func ValidURL(raw string) bool {
-	u, e := url.ParseRequestURI(raw)
-	return e == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
+	parsedURL, err := url.ParseRequestURI(raw)
+	return err == nil && (parsedURL.Scheme == "http" || parsedURL.Scheme == "https") && parsedURL.Host != ""
 }
-func CSVRows(q *Request) []map[string]string {
-	q.R.Body = http.MaxBytesReader(q.W, q.R.Body, 32<<20)
-	if q.R.ParseMultipartForm(4<<20) != nil {
+func CSVRows(req *Request) []map[string]string {
+	req.R.Body = http.MaxBytesReader(req.W, req.R.Body, 32<<20)
+	if req.R.ParseMultipartForm(4<<20) != nil {
 		Fail(400, "Invalid multipart CSV upload")
 	}
-	if q.R.MultipartForm != nil {
-		defer q.R.MultipartForm.RemoveAll()
+	if req.R.MultipartForm != nil {
+		defer req.R.MultipartForm.RemoveAll()
 	}
-	f, _, e := q.R.FormFile("csv_file")
-	if e != nil {
-		f, _, e = q.R.FormFile("file")
+	file, _, err := req.R.FormFile("csv_file")
+	if err != nil {
+		file, _, err = req.R.FormFile("file")
 	}
-	if e != nil {
+	if err != nil {
 		Fail(400, "csv_file is required")
 	}
-	defer f.Close()
-	reader := csv.NewReader(f)
+	defer file.Close()
+	reader := csv.NewReader(file)
 	reader.TrimLeadingSpace = true
-	headers, e := reader.Read()
-	if e != nil {
+	headers, err := reader.Read()
+	if err != nil {
 		Fail(400, "Missing CSV header")
 	}
 	headers[0] = strings.TrimPrefix(headers[0], "\ufeff")
 	out := []map[string]string{}
-	for n := 0; ; n++ {
-		row, e := reader.Read()
-		if e == io.EOF {
+	for rowIndex := 0; ; rowIndex++ {
+		row, err := reader.Read()
+		if err == io.EOF {
 			break
 		}
-		if e != nil {
-			Fail(400, fmt.Sprintf("Invalid CSV row %d", n+2))
+		if err != nil {
+			Fail(400, fmt.Sprintf("Invalid CSV row %d", rowIndex+2))
 		}
-		if n >= 50000 {
+		if rowIndex >= 50000 {
 			Fail(400, "CSV exceeds 50000 rows")
 		}
 		item := map[string]string{}
-		for i, h := range headers {
-			item[strings.TrimSpace(h)] = row[i]
+		for index, header := range headers {
+			item[strings.TrimSpace(header)] = row[index]
 		}
 		out = append(out, item)
 	}
 	return out
 }
-func ParseDate(s string) *time.Time {
+func ParseDate(text string) *time.Time {
 	for _, layout := range []string{"2006-01-02", time.RFC3339, "2006-01-02 15:04:05"} {
-		if t, e := time.Parse(layout, s); e == nil {
-			return &t
+		if parsed, err := time.Parse(layout, text); err == nil {
+			return &parsed
 		}
 	}
 	return nil
 }
-func ParseInt(s string) *int64 {
-	if n, e := strconv.ParseInt(s, 10, 64); e == nil {
-		return &n
+func ParseInt(text string) *int64 {
+	if parsed, err := strconv.ParseInt(text, 10, 64); err == nil {
+		return &parsed
 	}
 	return nil
 }
-func ParseFloat(s string) *float64 {
-	if n, e := strconv.ParseFloat(s, 64); e == nil {
-		return &n
+func ParseFloat(text string) *float64 {
+	if parsed, err := strconv.ParseFloat(text, 64); err == nil {
+		return &parsed
 	}
 	return nil
 }

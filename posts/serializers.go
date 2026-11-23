@@ -5,32 +5,32 @@ import (
 	"litloop/backend/internal/models"
 )
 
-func (s *Handler) PostJSON(p models.Post, u *models.User) map[string]any {
-	o := Object(p)
-	o["author"] = nil
-	o["is_liked"] = false
-	o["total_likes"] = p.LikesCount
-	if p.AuthorID != nil {
+func (handler *Handler) PostJSON(post models.Post, user *models.User) map[string]any {
+	postJSON := Object(post)
+	postJSON["author"] = nil
+	postJSON["is_liked"] = false
+	postJSON["total_likes"] = post.LikesCount
+	if post.AuthorID != nil {
 		var author models.User
-		if s.DB.First(&author, *p.AuthorID).Error == nil {
-			o["author"] = map[string]any{"id": author.ID, "username": author.Username, "avatar": author.Avatar, "is_own": u != nil && u.ID == author.ID}
+		if handler.DB.First(&author, *post.AuthorID).Error == nil {
+			postJSON["author"] = map[string]any{"id": author.ID, "username": author.Username, "avatar": author.Avatar, "is_own": user != nil && user.ID == author.ID}
 		}
 	}
-	if u != nil {
-		var n int64
-		Check(s.DB.Model(&models.PostLike{}).Where("post_id = ? AND user_id = ?", p.ID, u.ID).Count(&n).Error)
-		o["is_liked"] = n > 0
+	if user != nil {
+		var count int64
+		Check(handler.DB.Model(&models.PostLike{}).Where("post_id = ? AND user_id = ?", post.ID, user.ID).Count(&count).Error)
+		postJSON["is_liked"] = count > 0
 	}
-	photos := All[models.Photo](s.DB.Where("id IN (?)", s.DB.Model(&models.PostPhoto{}).Select("photo_id").Where("post_id = ?", p.ID).Order("\"order\"")))
-	o["photos"] = s.MediaList(photos)
-	videos := All[models.Video](s.DB.Where("id IN (?)", s.DB.Model(&models.PostVideo{}).Select("video_id").Where("post_id = ?", p.ID).Order("\"order\"")))
-	o["videos"] = s.MediaList(videos)
-	tracks := All[models.Track](s.DB.Where("id IN (?)", s.DB.Model(&models.PostTrack{}).Select("track_id").Where("post_id = ?", p.ID)))
+	photos := All[models.Photo](handler.DB.Where("id IN (?)", handler.DB.Model(&models.PostPhoto{}).Select("photo_id").Where("post_id = ?", post.ID).Order("\"order\"")))
+	postJSON["photos"] = handler.MediaList(photos)
+	videos := All[models.Video](handler.DB.Where("id IN (?)", handler.DB.Model(&models.PostVideo{}).Select("video_id").Where("post_id = ?", post.ID).Order("\"order\"")))
+	postJSON["videos"] = handler.MediaList(videos)
+	tracks := All[models.Track](handler.DB.Where("id IN (?)", handler.DB.Model(&models.PostTrack{}).Select("track_id").Where("post_id = ?", post.ID)))
 	out := []any{}
-	for _, t := range tracks {
-		out = append(out, s.TrackJSON(t))
+	for _, track := range tracks {
+		out = append(out, handler.TrackJSON(track))
 	}
-	o["tracks"] = out
-	o["playlists"] = All[models.Playlist](s.DB.Where("id IN (?)", s.DB.Model(&models.PostPlaylist{}).Select("playlist_id").Where("post_id = ?", p.ID)))
-	return o
+	postJSON["tracks"] = out
+	postJSON["playlists"] = All[models.Playlist](handler.DB.Where("id IN (?)", handler.DB.Model(&models.PostPlaylist{}).Select("playlist_id").Where("post_id = ?", post.ID)))
+	return postJSON
 }

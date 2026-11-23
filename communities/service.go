@@ -5,26 +5,26 @@ import (
 	"litloop/backend/internal/models"
 )
 
-func (s *Handler) Community(q *Request) models.Community {
-	if q.Param("handle") != "" {
-		var c models.Community
-		Check(s.DB.First(&c, "handle = ?", q.Param("handle")).Error)
-		return c
+func (handler *Handler) Community(req *Request) models.Community {
+	if req.Param("handle") != "" {
+		var community models.Community
+		Check(handler.DB.First(&community, "handle = ?", req.Param("handle")).Error)
+		return community
 	}
-	return Get[models.Community](s.DB, q.ID("id"))
+	return Get[models.Community](handler.DB, req.ID("id"))
 }
-func (s *Handler) CommunityRole(c models.Community, u *models.User, moderator bool) {
-	if u == nil {
+func (handler *Handler) CommunityRole(community models.Community, user *models.User, moderator bool) {
+	if user == nil {
 		Fail(401, "Authentication required")
 	}
-	if c.CreatedByID == u.ID || u.IsSuperuser {
+	if community.CreatedByID == user.ID || user.IsSuperuser {
 		return
 	}
-	var m models.CommunityMembership
-	if s.DB.First(&m, "community_id = ? AND user_id = ?", c.ID, u.ID).Error != nil {
+	var membership models.CommunityMembership
+	if handler.DB.First(&membership, "community_id = ? AND user_id = ?", community.ID, user.ID).Error != nil {
 		Fail(403, "Forbidden")
 	}
-	if m.Role != "admin" && !(moderator && m.Role == "moderator") {
+	if membership.Role != "admin" && !(moderator && membership.Role == "moderator") {
 		Fail(403, "Forbidden")
 	}
 }

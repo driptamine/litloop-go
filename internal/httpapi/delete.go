@@ -24,22 +24,22 @@ func deleteTree(tx *gorm.DB, table string, id int64, seen map[string]bool) error
 		return nil
 	}
 	seen[key] = true
-	for _, r := range models.Relations {
-		if r.Target != table {
+	for _, relation := range models.Relations {
+		if relation.Target != table {
 			continue
 		}
-		if r.OnDelete == "SET NULL" {
-			if e := tx.Table(r.Table).Where(r.Column+" = ?", id).Update(r.Column, nil).Error; e != nil {
-				return e
+		if relation.OnDelete == "SET NULL" {
+			if err := tx.Table(relation.Table).Where(relation.Column+" = ?", id).Update(relation.Column, nil).Error; err != nil {
+				return err
 			}
 		} else {
 			var children []int64
-			if e := tx.Table(r.Table).Where(r.Column+" = ?", id).Pluck("id", &children).Error; e != nil {
-				return e
+			if err := tx.Table(relation.Table).Where(relation.Column+" = ?", id).Pluck("id", &children).Error; err != nil {
+				return err
 			}
 			for _, child := range children {
-				if e := deleteTree(tx, r.Table, child, seen); e != nil {
-					return e
+				if err := deleteTree(tx, relation.Table, child, seen); err != nil {
+					return err
 				}
 			}
 		}

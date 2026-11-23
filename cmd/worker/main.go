@@ -11,14 +11,14 @@ import (
 )
 
 func main() {
-	c := config.Load()
-	db, e := database.Open(c)
-	if e != nil {
-		log.Fatal(e)
+	appConfig := config.Load()
+	db, err := database.Open(appConfig)
+	if err != nil {
+		log.Fatal(err)
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
-	if e = worker.New(db, c).Run(ctx); e != nil {
-		log.Fatal(e)
+	if err = worker.New(db, appConfig).Run(ctx); err != nil {
+		log.Fatal(err)
 	}
 }

@@ -5,10 +5,10 @@ import (
 	"litloop/backend/internal/models"
 )
 
-func imdbJSON(m models.ImdbMovie) map[string]any {
-	o := Object(m)
-	o["release_date"] = Date(m.ReleaseDate)
-	o["created_at"] = Date(m.CreatedAt)
-	o["modified_at"] = Date(m.ModifiedAt)
-	return o
+func imdbJSON(movie models.ImdbMovie) map[string]any {
+	out := Object(movie)
+	out["release_date"] = Date(movie.ReleaseDate)
+	out["created_at"] = Date(movie.CreatedAt)
+	out["modified_at"] = Date(movie.ModifiedAt)
+	return out
 }

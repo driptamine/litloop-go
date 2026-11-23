@@ -14,19 +14,19 @@ import (
 )
 
 const (
-	groupVoiceType  = "groupvoice"
-	groupVoiceLease = 90 * time.Second
+	groupVoiceType	= "groupvoice"
+	groupVoiceLease	= 90 * time.Second
 )
 
 type voiceMember struct {
-	UserID    int64  `json:"user_id"`
-	SessionID string `json:"session_id"`
-	Username  string `json:"username"`
+	UserID		int64	`json:"user_id"`
+	SessionID	string	`json:"session_id"`
+	Username	string	`json:"username"`
 }
 
 type voiceRoom struct {
-	ID      int64         `json:"id"`
-	Members []voiceMember `json:"members"`
+	ID	int64		`json:"id"`
+	Members	[]voiceMember	`json:"members"`
 }
 
 func activeVoiceRoom(db *gorm.DB, chatID int64, cutoff time.Time) (models.Call, error) {
@@ -50,9 +50,9 @@ func voiceMembers(db *gorm.DB, call models.Call) []voiceMember {
 	return members
 }
 
-func (s *Handler) joinGroupVoice(q *Request, chatID int64, session string) any {
+func (handler *Handler) joinGroupVoice(req *Request, chatID int64, session string) any {
 	var call models.Call
-	q.Tx(func(tx *gorm.DB) error {
+	req.Tx(func(tx *gorm.DB) error {
 		var chat models.Chat
 		Check(tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select("id").First(&chat, chatID).Error)
 		now := time.Now()
@@ -61,25 +61,25 @@ func (s *Handler) joinGroupVoice(q *Request, chatID int64, session string) any {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			Check(tx.Model(&models.Call{}).Where("chat_id = ? AND call_type = ? AND status = ?", chatID, groupVoiceType, "ongoing").
 				Updates(map[string]any{"status": "completed", "ended_at": now}).Error)
-			call = models.Call{ChatID: chatID, CallerID: q.User.ID, CallType: groupVoiceType, Status: "ongoing"}
+			call = models.Call{ChatID: chatID, CallerID: req.User.ID, CallType: groupVoiceType, Status: "ongoing"}
 			Check(tx.Create(&call).Error)
 		} else {
 			Check(err)
 		}
-		member := models.CallParticipant{CallID: call.ID, UserID: q.User.ID, SessionID: session, SeenAt: now}
+		member := models.CallParticipant{CallID: call.ID, UserID: req.User.ID, SessionID: session, SeenAt: now}
 		return tx.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "call_id"}, {Name: "user_id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"session_id", "seen_at"}),
+			Columns:	[]clause.Column{{Name: "call_id"}, {Name: "user_id"}},
+			DoUpdates:	clause.AssignmentColumns([]string{"session_id", "seen_at"}),
 		}).Create(&member).Error
 	})
-	return map[string]any{"room": voiceRoom{ID: call.ID, Members: voiceMembers(s.DB, call)}}
+	return map[string]any{"room": voiceRoom{ID: call.ID, Members: voiceMembers(handler.DB, call)}}
 }
 
-func (s *Handler) leaveGroupVoice(q *Request, call models.Call, session string) {
-	q.Tx(func(tx *gorm.DB) error {
+func (handler *Handler) leaveGroupVoice(req *Request, call models.Call, session string) {
+	req.Tx(func(tx *gorm.DB) error {
 		var chat models.Chat
 		Check(tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select("id").First(&chat, call.ChatID).Error)
-		Check(tx.Where("call_id = ? AND user_id = ? AND session_id = ?", call.ID, q.User.ID, session).
+		Check(tx.Where("call_id = ? AND user_id = ? AND session_id = ?", call.ID, req.User.ID, session).
 			Delete(&models.CallParticipant{}).Error)
 		if len(voiceMembers(tx, call)) == 0 {
 			return tx.Model(&call).Updates(map[string]any{"status": "completed", "ended_at": time.Now()}).Error
@@ -88,34 +88,34 @@ func (s *Handler) leaveGroupVoice(q *Request, call models.Call, session string) 
 	})
 }
 
-func (s *Handler) GroupVoice(q *Request) any {
-	q.W.Header().Set("Cache-Control", "no-store")
-	chat := s.ChatAccess(q, q.ID("id"))
+func (handler *Handler) GroupVoice(req *Request) any {
+	req.W.Header().Set("Cache-Control", "no-store")
+	chat := handler.ChatAccess(req, req.ID("id"))
 	if chat.ChatType != "groupchat" {
 		Fail(400, "Group voice is available in group chats")
 	}
-	if q.R.Method == http.MethodGet {
-		call, err := activeVoiceRoom(s.DB, chat.ID, time.Now().Add(-groupVoiceLease))
+	if req.R.Method == http.MethodGet {
+		call, err := activeVoiceRoom(handler.DB, chat.ID, time.Now().Add(-groupVoiceLease))
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return map[string]any{"room": nil}
 		}
 		Check(err)
-		return map[string]any{"room": voiceRoom{ID: call.ID, Members: voiceMembers(s.DB, call)}}
+		return map[string]any{"room": voiceRoom{ID: call.ID, Members: voiceMembers(handler.DB, call)}}
 	}
 
-	b := q.Body()
-	session := Str(b["session_id"])
+	body := req.Body()
+	session := Str(body["session_id"])
 	if !sessionIDPattern.MatchString(session) {
 		Fail(400, "Invalid voice session")
 	}
-	action := Str(b["action"])
+	action := Str(body["action"])
 	if action == "join" {
-		return s.joinGroupVoice(q, chat.ID, session)
+		return handler.joinGroupVoice(req, chat.ID, session)
 	}
 
 	var call models.Call
-	err := s.DB.Where("id = ? AND chat_id = ? AND call_type = ? AND status = ?",
-		Num(b["room_id"]), chat.ID, groupVoiceType, "ongoing").First(&call).Error
+	err := handler.DB.Where("id = ? AND chat_id = ? AND call_type = ? AND status = ?",
+		Num(body["room_id"]), chat.ID, groupVoiceType, "ongoing").First(&call).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		if action == "leave" {
 			return map[string]any{"status": "ok"}
@@ -124,13 +124,13 @@ func (s *Handler) GroupVoice(q *Request) any {
 	}
 	Check(err)
 
-	member := s.DB.Model(&models.CallParticipant{}).Where(
+	member := handler.DB.Model(&models.CallParticipant{}).Where(
 		"call_id = ? AND user_id = ? AND session_id = ? AND seen_at > ?",
-		call.ID, q.User.ID, session, time.Now().Add(-groupVoiceLease),
+		call.ID, req.User.ID, session, time.Now().Add(-groupVoiceLease),
 	)
 	switch action {
 	case "leave":
-		s.leaveGroupVoice(q, call, session)
+		handler.leaveGroupVoice(req, call, session)
 		return map[string]any{"status": "ok"}
 	case "sync":
 		result := member.UpdateColumn("seen_at", time.Now())
@@ -138,36 +138,36 @@ func (s *Handler) GroupVoice(q *Request) any {
 		if result.RowsAffected != 1 {
 			Fail(409, "This voice session is no longer active")
 		}
-		signals, err := s.Hub.GroupVoiceSignals(call.ID, q.User.ID, session)
+		signals, err := handler.Hub.GroupVoiceSignals(call.ID, req.User.ID, session)
 		Check(err)
-		if after := Str(b["after"]); after != "" {
-			for i, raw := range signals {
+		if after := Str(body["after"]); after != "" {
+			for index, raw := range signals {
 				var frame struct {
 					ID string `json:"signal_id"`
 				}
 				if json.Unmarshal(raw, &frame) == nil && frame.ID == after {
-					signals = signals[i+1:]
+					signals = signals[index+1:]
 					break
 				}
 			}
 		}
-		return map[string]any{"room": voiceRoom{ID: call.ID, Members: voiceMembers(s.DB, call)}, "signals": signals}
+		return map[string]any{"room": voiceRoom{ID: call.ID, Members: voiceMembers(handler.DB, call)}, "signals": signals}
 	case "signal":
 		var count int64
 		Check(member.Count(&count).Error)
 		if count == 0 {
 			Fail(409, "This voice session is no longer active")
 		}
-		targetUser := Num(b["target_user_id"])
-		targetSession := Str(b["target_session_id"])
-		for _, target := range voiceMembers(s.DB, call) {
-			if target.UserID == targetUser && targetUser != q.User.ID && target.SessionID == targetSession {
-				signal, ok := b["signal_data"].(map[string]any)
+		targetUser := Num(body["target_user_id"])
+		targetSession := Str(body["target_session_id"])
+		for _, target := range voiceMembers(handler.DB, call) {
+			if target.UserID == targetUser && targetUser != req.User.ID && target.SessionID == targetSession {
+				signal, ok := body["signal_data"].(map[string]any)
 				if !ok || (Str(signal["type"]) != "offer" && Str(signal["type"]) != "answer" && Str(signal["type"]) != "candidate") {
 					Fail(400, "Invalid voice signal")
 				}
-				Check(s.Hub.SaveGroupVoiceSignal(call.ID, targetUser, targetSession, map[string]any{
-					"signal_id": rand.Text(), "from_user_id": q.User.ID, "from_session_id": session, "signal_data": signal,
+				Check(handler.Hub.SaveGroupVoiceSignal(call.ID, targetUser, targetSession, map[string]any{
+					"signal_id":	rand.Text(), "from_user_id": req.User.ID, "from_session_id": session, "signal_data": signal,
 				}))
 				return map[string]any{"status": "ok"}
 			}

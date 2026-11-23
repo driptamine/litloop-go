@@ -9,69 +9,69 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func (s *Handler) Communities(q *Request) any {
+func (handler *Handler) Communities(req *Request) any {
 	out := []any{}
-	db := s.DB.Order("id DESC")
-	if Search := q.R.URL.Query().Get("q"); Search != "" {
+	db := handler.DB.Order("id DESC")
+	if Search := req.R.URL.Query().Get("q"); Search != "" {
 		db = db.Where("LOWER(name) LIKE ?", "%"+strings.ToLower(Search)+"%")
 	}
-	for _, c := range All[models.Community](db) {
-		out = append(out, s.CommunityJSON(c, q.User))
+	for _, community := range All[models.Community](db) {
+		out = append(out, handler.CommunityJSON(community, req.User))
 	}
 	return map[string]any{"communities": out}
 }
-func (s *Handler) CommunityWrite(q *Request) any {
-	var c models.Community
-	creating := q.Param("id") == ""
+func (handler *Handler) CommunityWrite(req *Request) any {
+	var community models.Community
+	creating := req.Param("id") == ""
 	if !creating {
-		c = s.Community(q)
-		s.CommunityRole(c, q.User, false)
+		community = handler.Community(req)
+		handler.CommunityRole(community, req.User, false)
 	} else {
-		c.CreatedByID = q.User.ID
+		community.CreatedByID = req.User.ID
 	}
-	if q.R.Method == "DELETE" {
-		q.Tx(func(tx *gorm.DB) error { return DeleteRecord(tx, "communities_community", c.ID) })
-		return map[string]any{"deleted": true, "community_id": c.ID}
+	if req.R.Method == "DELETE" {
+		req.Tx(func(tx *gorm.DB) error { return DeleteRecord(tx, "communities_community", community.ID) })
+		return map[string]any{"deleted": true, "community_id": community.ID}
 	}
-	b := q.Body()
-	for _, p := range []struct {
-		Key   string
-		Value *string
-	}{{"name", &c.Name}, {"description", &c.Description}, {"handle", &c.Handle}, {"icon", &c.Icon}, {"banner", &c.Banner}} {
-		if v, ok := b[p.Key]; ok {
-			*p.Value = strings.TrimSpace(Str(v))
+	body := req.Body()
+	for _, field := range []struct {
+		Key	string
+		Value	*string
+	}{{"name", &community.Name}, {"description", &community.Description}, {"handle", &community.Handle}, {"icon", &community.Icon}, {"banner", &community.Banner}} {
+		if value, ok := body[field.Key]; ok {
+			*field.Value = strings.TrimSpace(Str(value))
 		}
 	}
-	if c.Name == "" {
+	if community.Name == "" {
 		Fail(400, "name is required")
 	}
-	if c.Handle == "" {
-		c.Handle = strings.Trim(SlugRE.ReplaceAllString(strings.ToLower(c.Name), "-"), "-")
-		if c.Handle == "" {
-			c.Handle = "community-" + Token()[:8]
+	if community.Handle == "" {
+		community.Handle = strings.Trim(SlugRE.ReplaceAllString(strings.ToLower(community.Name), "-"), "-")
+		if community.Handle == "" {
+			community.Handle = "community-" + Token()[:8]
 		}
 	}
-	q.Tx(func(tx *gorm.DB) error {
-		Check(tx.Save(&c).Error)
+	req.Tx(func(tx *gorm.DB) error {
+		Check(tx.Save(&community).Error)
 		if creating {
-			return tx.Create(&models.CommunityMembership{CommunityID: c.ID, UserID: q.User.ID, Role: "admin"}).Error
+			return tx.Create(&models.CommunityMembership{CommunityID: community.ID, UserID: req.User.ID, Role: "admin"}).Error
 		}
 		return nil
 	})
 	if creating {
-		q.Status = 201
+		req.Status = 201
 	}
-	return s.CommunityJSON(c, q.User)
+	return handler.CommunityJSON(community, req.User)
 }
-func (s *Handler) CommunityJoin(q *Request) any {
-	c := s.Community(q)
-	if strings.HasSuffix(q.R.URL.Path, "/leave") {
-		if c.CreatedByID == q.User.ID {
+func (handler *Handler) CommunityJoin(req *Request) any {
+	community := handler.Community(req)
+	if strings.HasSuffix(req.R.URL.Path, "/leave") {
+		if community.CreatedByID == req.User.ID {
 			Fail(400, "Owner cannot leave the community")
 		}
-		Check(s.DB.Where("community_id = ? AND user_id = ?", c.ID, q.User.ID).Delete(&models.CommunityMembership{}).Error)
+		Check(handler.DB.Where("community_id = ? AND user_id = ?", community.ID, req.User.ID).Delete(&models.CommunityMembership{}).Error)
 	} else {
-		Check(s.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&models.CommunityMembership{CommunityID: c.ID, UserID: q.User.ID, Role: "member"}).Error)
+		Check(handler.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&models.CommunityMembership{CommunityID: community.ID, UserID: req.User.ID, Role: "member"}).Error)
 	}
-	return s.CommunityJSON(c, q.User)
+	return handler.CommunityJSON(community, req.User)
 }

@@ -8,64 +8,64 @@ import (
 	"gorm.io/gorm"
 )
 
-func (s *Handler) Catalog(q *Request) any {
-	kind := strings.Split(strings.TrimPrefix(q.R.URL.Path, "/"), "/")[0]
-	key := q.Param("key")
-	term := q.R.URL.Query().Get("q")
-	suffix := q.R.URL.Path
+func (handler *Handler) Catalog(req *Request) any {
+	kind := strings.Split(strings.TrimPrefix(req.R.URL.Path, "/"), "/")[0]
+	key := req.Param("key")
+	term := req.R.URL.Query().Get("q")
+	suffix := req.R.URL.Path
 	var db *gorm.DB
 	var dest any
 	var encode func(any) any
 	switch kind {
 	case "artist":
-		db = s.DB.Model(&models.Artist{})
+		db = handler.DB.Model(&models.Artist{})
 		dest = &[]models.Artist{}
-		encode = func(v any) any {
+		encode = func(value any) any {
 			out := []any{}
-			for _, a := range *v.(*[]models.Artist) {
-				out = append(out, s.ArtistJSON(a))
+			for _, artist := range *value.(*[]models.Artist) {
+				out = append(out, handler.ArtistJSON(artist))
 			}
 			return out
 		}
 		if key != "" {
-			var a models.Artist
-			Check(s.DB.First(&a, "artist_uri = ?", key).Error)
+			var album models.Artist
+			Check(handler.DB.First(&album, "artist_uri = ?", key).Error)
 			if strings.Contains(suffix, "/albums") {
 				out := []any{}
-				for _, album := range All[models.Album](s.DB.Where("id IN (?)", s.DB.Model(&models.AlbumArtist{}).Select("album_id").Where("artist_id = ?", a.ID))) {
-					out = append(out, s.AlbumJSON(album))
+				for _, album := range All[models.Album](handler.DB.Where("id IN (?)", handler.DB.Model(&models.AlbumArtist{}).Select("album_id").Where("artist_id = ?", album.ID))) {
+					out = append(out, handler.AlbumJSON(album))
 				}
 				return map[string]any{"albums": out}
 			}
-			return s.ArtistJSON(a)
+			return handler.ArtistJSON(album)
 		}
 	case "album":
-		db = s.DB.Model(&models.Album{})
+		db = handler.DB.Model(&models.Album{})
 		dest = &[]models.Album{}
-		encode = func(v any) any {
+		encode = func(value any) any {
 			out := []any{}
-			for _, a := range *v.(*[]models.Album) {
-				out = append(out, s.AlbumJSON(a))
+			for _, album := range *value.(*[]models.Album) {
+				out = append(out, handler.AlbumJSON(album))
 			}
 			return out
 		}
 		if key != "" {
-			var a models.Album
-			Check(s.DB.First(&a, "album_uri = ?", key).Error)
-			return s.AlbumJSON(a)
+			var album models.Album
+			Check(handler.DB.First(&album, "album_uri = ?", key).Error)
+			return handler.AlbumJSON(album)
 		}
 	case "tracks":
-		db = s.DB.Model(&models.Track{})
+		db = handler.DB.Model(&models.Track{})
 		dest = &[]models.Track{}
-		encode = func(v any) any {
+		encode = func(value any) any {
 			out := []any{}
-			for _, t := range *v.(*[]models.Track) {
-				out = append(out, s.TrackJSON(t))
+			for _, track := range *value.(*[]models.Track) {
+				out = append(out, handler.TrackJSON(track))
 			}
 			return out
 		}
 		if key != "" {
-			return s.TrackJSON(s.FindTrack(key))
+			return handler.TrackJSON(handler.FindTrack(key))
 		}
 	default:
 		Fail(404, "Not found")
@@ -85,7 +85,7 @@ func (s *Handler) Catalog(q *Request) any {
 		}
 		return map[string]any{"return_code": "0000", "return_message": "Success", name: encode(dest)}
 	}
-	page := q.Page(db, dest, encode).(map[string]any)
+	page := req.Page(db, dest, encode).(map[string]any)
 	if strings.HasSuffix(suffix, "/feed") {
 		return page
 	}

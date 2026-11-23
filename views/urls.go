@@ -4,7 +4,7 @@ import (
 	. "litloop/backend/internal/httpapi"
 )
 
-func Register(s *Server) {
-	s.Route("POST", "/views/up", true, s.View)
-	s.Route("GET", "/views/memes", false, s.Memes)
+func Register(server *Server) {
+	server.Route("POST", "/views/up", true, server.View)
+	server.Route("GET", "/views/memes", false, server.Memes)
 }

@@ -9,34 +9,34 @@ import (
 	"gorm.io/gorm"
 )
 
-func (s *Handler) Transcription(q *Request) any {
-	v := Get[models.VoiceMessage](s.DB.Where("user_id = ?", q.User.ID), q.ID("voice"))
-	if q.R.Method == "GET" {
-		return s.VoiceJSON(v)
+func (handler *Handler) Transcription(req *Request) any {
+	voice := Get[models.VoiceMessage](handler.DB.Where("user_id = ?", req.User.ID), req.ID("voice"))
+	if req.R.Method == "GET" {
+		return handler.VoiceJSON(voice)
 	}
-	if s.Config.TranscriptionURL == "" {
+	if handler.Config.TranscriptionURL == "" {
 		Fail(503, "TRANSCRIPTION_URL is not configured")
 	}
-	if v.TranscriptionStatus == "pending" || v.TranscriptionStatus == "processing" {
-		return s.VoiceJSON(v)
+	if voice.TranscriptionStatus == "pending" || voice.TranscriptionStatus == "processing" {
+		return handler.VoiceJSON(voice)
 	}
-	q.Tx(func(tx *gorm.DB) error {
-		Check(tx.Model(&v).Update("transcription_status", "pending").Error)
-		return tx.Create(&models.Task{Kind: "transcribe", Payload: models.AsJSON(map[string]any{"voice_id": v.ID, "url": s.MediaURL(v.R2Key, v.GCSKey, v.S3Key)}), Status: "pending", RunAt: time.Now()}).Error
+	req.Tx(func(tx *gorm.DB) error {
+		Check(tx.Model(&voice).Update("transcription_status", "pending").Error)
+		return tx.Create(&models.Task{Kind: "transcribe", Payload: models.AsJSON(map[string]any{"voice_id": voice.ID, "url": handler.MediaURL(voice.R2Key, voice.GCSKey, voice.S3Key)}), Status: "pending", RunAt: time.Now()}).Error
 	})
-	q.Status = 202
-	return map[string]any{"status": "pending", "voice_id": v.ID}
+	req.Status = 202
+	return map[string]any{"status": "pending", "voice_id": voice.ID}
 }
-func (s *Handler) TranscriptionCallback(q *Request) any {
-	if s.Config.TranscriptionSecret == "" || !SecureEqual(strings.TrimPrefix(q.R.Header.Get("Authorization"), "Bearer "), s.Config.TranscriptionSecret) {
+func (handler *Handler) TranscriptionCallback(req *Request) any {
+	if handler.Config.TranscriptionSecret == "" || !SecureEqual(strings.TrimPrefix(req.R.Header.Get("Authorization"), "Bearer "), handler.Config.TranscriptionSecret) {
 		Fail(403, "Invalid callback token")
 	}
-	b := q.Body()
-	v := Get[models.VoiceMessage](s.DB, Num(b["voice_id"]))
-	status := Str(b["status"])
+	body := req.Body()
+	voice := Get[models.VoiceMessage](handler.DB, Num(body["voice_id"]))
+	status := Str(body["status"])
 	if status != "completed" && status != "failed" && status != "processing" {
 		Fail(400, "Invalid transcription status")
 	}
-	Check(s.DB.Model(&v).Updates(map[string]any{"transcription": Str(b["transcription"]), "transcription_language": Str(b["language"]), "transcription_status": status, "transcribed_at": time.Now()}).Error)
+	Check(handler.DB.Model(&voice).Updates(map[string]any{"transcription": Str(body["transcription"]), "transcription_language": Str(body["language"]), "transcription_status": status, "transcribed_at": time.Now()}).Error)
 	return map[string]any{"status": "ok"}
 }

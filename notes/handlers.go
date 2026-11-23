@@ -9,73 +9,73 @@ import (
 	"gorm.io/gorm"
 )
 
-func (s *Handler) Pages(q *Request) any {
-	if q.Param("id") != "" {
-		return s.PageJSON(s.OwnedPage(q, q.ID("id")), true)
+func (handler *Handler) Pages(req *Request) any {
+	if req.Param("id") != "" {
+		return handler.PageJSON(handler.OwnedPage(req, req.ID("id")), true)
 	}
-	db := s.DB.Where("author_id = ?", q.User.ID)
-	if strings.HasSuffix(q.R.URL.Path, "/search-by-tags") {
-		tags, ok := q.Body()["tags"].([]any)
+	db := handler.DB.Where("author_id = ?", req.User.ID)
+	if strings.HasSuffix(req.R.URL.Path, "/search-by-tags") {
+		tags, ok := req.Body()["tags"].([]any)
 		if !ok || len(tags) == 0 {
 			return []any{}
 		}
 		unique := map[string]bool{}
-		for _, t := range tags {
-			unique[strings.ToLower(strings.TrimSpace(Str(t)))] = true
+		for _, tag := range tags {
+			unique[strings.ToLower(strings.TrimSpace(Str(tag)))] = true
 		}
-		for t := range unique {
-			db = db.Where("id IN (?)", s.DB.Model(&models.PageTag{}).Select("page_id").Where("name = ?", t))
+		for tag := range unique {
+			db = db.Where("id IN (?)", handler.DB.Model(&models.PageTag{}).Select("page_id").Where("name = ?", tag))
 		}
 	}
 	out := []any{}
-	for _, p := range All[models.Page](db.Order("title")) {
-		out = append(out, s.PageJSON(p, false))
+	for _, page := range All[models.Page](db.Order("title")) {
+		out = append(out, handler.PageJSON(page, false))
 	}
 	return out
 }
-func (s *Handler) PageWrite(q *Request) any {
-	p := models.Page{AuthorID: Ptr(q.User.ID), IsPrivate: true}
-	creating := q.Param("id") == ""
+func (handler *Handler) PageWrite(req *Request) any {
+	page := models.Page{AuthorID: Ptr(req.User.ID), IsPrivate: true}
+	creating := req.Param("id") == ""
 	if !creating {
-		p = s.OwnedPage(q, q.ID("id"))
-		if p.IsLocked {
+		page = handler.OwnedPage(req, req.ID("id"))
+		if page.IsLocked {
 			Fail(409, "Page is locked")
 		}
 	}
-	if q.R.Method == "DELETE" {
-		q.Tx(func(tx *gorm.DB) error { return DeleteRecord(tx, "notes_page", p.ID) })
+	if req.R.Method == "DELETE" {
+		req.Tx(func(tx *gorm.DB) error { return DeleteRecord(tx, "notes_page", page.ID) })
 		return map[string]any{"message": "Page deleted"}
 	}
-	b := q.Body()
-	if v, ok := b["title"]; ok {
-		p.Title = strings.TrimSpace(Str(v))
+	body := req.Body()
+	if value, ok := body["title"]; ok {
+		page.Title = strings.TrimSpace(Str(value))
 	}
-	if len([]rune(p.Title)) > 200 {
+	if len([]rune(page.Title)) > 200 {
 		Fail(400, "title too long")
 	}
-	if v, ok := b["parent_id"]; ok {
-		p.ParentID = nil
-		if v != nil {
-			parent := s.OwnedPage(q, Num(v))
+	if value, ok := body["parent_id"]; ok {
+		page.ParentID = nil
+		if value != nil {
+			parent := handler.OwnedPage(req, Num(value))
 			for ancestor := &parent; ancestor != nil; {
-				if ancestor.ID == p.ID {
+				if ancestor.ID == page.ID {
 					Fail(400, "A page cannot contain itself")
 				}
 				if ancestor.ParentID == nil {
 					break
 				}
-				x := s.OwnedPage(q, *ancestor.ParentID)
-				ancestor = &x
+				page := handler.OwnedPage(req, *ancestor.ParentID)
+				ancestor = &page
 			}
-			p.ParentID = Ptr(parent.ID)
+			page.ParentID = Ptr(parent.ID)
 		}
 	}
-	if v, ok := b["is_private"]; ok {
-		p.IsPrivate = Boolean(v)
+	if value, ok := body["is_private"]; ok {
+		page.IsPrivate = Boolean(value)
 	}
-	q.Tx(func(tx *gorm.DB) error { Check(tx.Save(&p).Error); return tree.Rebuild(tx, "notes_page") })
+	req.Tx(func(tx *gorm.DB) error { Check(tx.Save(&page).Error); return tree.Rebuild(tx, "notes_page") })
 	if creating {
-		q.Status = 201
+		req.Status = 201
 	}
-	return s.PageJSON(p, false)
+	return handler.PageJSON(page, false)
 }

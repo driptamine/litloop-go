@@ -4,8 +4,8 @@ import (
 	. "litloop/backend/internal/httpapi"
 )
 
-func Register(s *Server) {
-	s.Route("GET", "/ws/notifications", false, s.Websocket)
-	s.Route("GET", "/notifications", true, s.Notifications)
-	s.Route("POST", "/notifications/read", true, s.Notifications)
+func Register(server *Server) {
+	server.Route("GET", "/ws/notifications", false, server.Websocket)
+	server.Route("GET", "/notifications", true, server.Notifications)
+	server.Route("POST", "/notifications/read", true, server.Notifications)
 }

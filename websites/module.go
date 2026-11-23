@@ -6,4 +6,4 @@ import (
 
 type Handler struct{ *Server }
 
-func New(s *Server) *Handler { return &Handler{Server: s} }
+func New(server *Server) *Handler	{ return &Handler{Server: server} }

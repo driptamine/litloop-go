@@ -8,75 +8,75 @@ import (
 	"gorm.io/gorm"
 )
 
-func (s *Handler) ImportMovies(q *Request) any {
-	rows := CSVRows(q)
-	ratings := strings.Contains(q.R.URL.Path, "ratings")
+func (handler *Handler) ImportMovies(req *Request) any {
+	rows := CSVRows(req)
+	ratings := strings.Contains(req.R.URL.Path, "ratings")
 	created, updated := 0, 0
-	q.Tx(func(tx *gorm.DB) error {
-		for _, r := range rows {
-			id := r["Const"]
+	req.Tx(func(tx *gorm.DB) error {
+		for _, row := range rows {
+			id := row["Const"]
 			if id == "" {
-				id = r["imdb_id"]
+				id = row["imdb_id"]
 			}
 			if id == "" {
 				continue
 			}
-			m := models.ImdbMovie{ImdbID: id}
-			e := tx.First(&m, "imdb_id = ?", id).Error
-			if e == gorm.ErrRecordNotFound {
-				m.Title = r["Title"]
-				m.OriginalTitle = r["Original Title"]
-				m.URL = r["URL"]
-				m.TitleType = r["Title Type"]
-				m.ImdbRating = ParseFloat(r["IMDb Rating"])
-				m.RuntimeMinutes = ParseInt(r["Runtime (mins)"])
-				m.Year = ParseInt(r["Year"])
-				m.Genres = r["Genres"]
-				m.NumVotes = ParseInt(r["Num Votes"])
-				m.ReleaseDate = ParseDate(r["Release Date"])
-				m.Directors = r["Directors"]
-				m.CreatedAt = ParseDate(r["Created"])
-				m.ModifiedAt = ParseDate(r["Modified"])
-				m.Position = ParseInt(r["Position"])
-				Check(tx.Create(&m).Error)
+			movie := models.ImdbMovie{ImdbID: id}
+			err := tx.First(&movie, "imdb_id = ?", id).Error
+			if err == gorm.ErrRecordNotFound {
+				movie.Title = row["Title"]
+				movie.OriginalTitle = row["Original Title"]
+				movie.URL = row["URL"]
+				movie.TitleType = row["Title Type"]
+				movie.ImdbRating = ParseFloat(row["IMDb Rating"])
+				movie.RuntimeMinutes = ParseInt(row["Runtime (mins)"])
+				movie.Year = ParseInt(row["Year"])
+				movie.Genres = row["Genres"]
+				movie.NumVotes = ParseInt(row["Num Votes"])
+				movie.ReleaseDate = ParseDate(row["Release Date"])
+				movie.Directors = row["Directors"]
+				movie.CreatedAt = ParseDate(row["Created"])
+				movie.ModifiedAt = ParseDate(row["Modified"])
+				movie.Position = ParseInt(row["Position"])
+				Check(tx.Create(&movie).Error)
 			} else {
-				Check(e)
+				Check(err)
 			}
 			if ratings {
-				rating := ParseFloat(r["Your Rating"])
+				rating := ParseFloat(row["Your Rating"])
 				if rating == nil {
 					continue
 				}
 				if *rating < 1 || *rating > 10 {
 					Fail(400, "Rating must be 1–10")
 				}
-				var v models.ImdbMovieRating
-				e = tx.First(&v, "user_id = ? AND imdb_movie_id = ?", q.User.ID, m.ID).Error
-				if e == gorm.ErrRecordNotFound {
+				var movieRating models.ImdbMovieRating
+				err = tx.First(&movieRating, "user_id = ? AND imdb_movie_id = ?", req.User.ID, movie.ID).Error
+				if err == gorm.ErrRecordNotFound {
 					created++
 				} else {
-					Check(e)
+					Check(err)
 					updated++
 				}
-				v.UserID = q.User.ID
-				v.ImdbMovieID = m.ID
-				v.Rating = *rating
-				v.DateRated = ParseDate(r["Date Rated"])
-				Check(tx.Save(&v).Error)
+				movieRating.UserID = req.User.ID
+				movieRating.ImdbMovieID = movie.ID
+				movieRating.Rating = *rating
+				movieRating.DateRated = ParseDate(row["Date Rated"])
+				Check(tx.Save(&movieRating).Error)
 			} else {
-				var w models.WatchlistItem
-				e = tx.First(&w, "user_id = ? AND movie_id = ?", q.User.ID, m.ID).Error
-				if e == gorm.ErrRecordNotFound {
+				var watchlistItem models.WatchlistItem
+				err = tx.First(&watchlistItem, "user_id = ? AND movie_id = ?", req.User.ID, movie.ID).Error
+				if err == gorm.ErrRecordNotFound {
 					created++
 				} else {
-					Check(e)
+					Check(err)
 					updated++
 				}
-				w.UserID = q.User.ID
-				w.MovieID = m.ID
-				w.UserRating = ParseFloat(r["Your Rating"])
-				w.Notes = r["Description"]
-				Check(tx.Save(&w).Error)
+				watchlistItem.UserID = req.User.ID
+				watchlistItem.MovieID = movie.ID
+				watchlistItem.UserRating = ParseFloat(row["Your Rating"])
+				watchlistItem.Notes = row["Description"]
+				Check(tx.Save(&watchlistItem).Error)
 			}
 		}
 		return nil

@@ -5,21 +5,21 @@ import (
 	"litloop/backend/internal/models"
 )
 
-func (s *Handler) TrackJSON(t models.Track) any {
-	o := s.MediaJSON(t)
-	o["pk"] = t.ID
-	o["id"] = t.TrackURI
-	o["user"] = nil
-	if t.UserID != nil {
-		var u models.User
-		if s.DB.First(&u, *t.UserID).Error == nil {
-			o["user"] = PublicUser(u)
+func (handler *Handler) TrackJSON(track models.Track) any {
+	out := handler.MediaJSON(track)
+	out["pk"] = track.ID
+	out["id"] = track.TrackURI
+	out["user"] = nil
+	if track.UserID != nil {
+		var user models.User
+		if handler.DB.First(&user, *track.UserID).Error == nil {
+			out["user"] = PublicUser(user)
 		}
 	}
 	artists := []any{}
-	for _, a := range All[models.Artist](s.DB.Where("id IN (?)", s.DB.Model(&models.TrackArtist{}).Select("artist_id").Where("track_id = ?", t.ID))) {
-		artists = append(artists, s.ArtistJSON(a))
+	for _, artist := range All[models.Artist](handler.DB.Where("id IN (?)", handler.DB.Model(&models.TrackArtist{}).Select("artist_id").Where("track_id = ?", track.ID))) {
+		artists = append(artists, handler.ArtistJSON(artist))
 	}
-	o["artists"] = artists
-	return o
+	out["artists"] = artists
+	return out
 }

@@ -20,220 +20,220 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func (s *Handler) UploadInitiate(q *Request) any {
-	b := q.Body()
-	kind := strings.Split(strings.TrimPrefix(q.R.URL.Path, "/"), "/")[0]
-	filename := filepath.Base(Str(b["filename"]))
+func (handler *Handler) UploadInitiate(req *Request) any {
+	body := req.Body()
+	kind := strings.Split(strings.TrimPrefix(req.R.URL.Path, "/"), "/")[0]
+	filename := filepath.Base(Str(body["filename"]))
 	if filename == "" || filename == "." || len(filename) > 255 {
 		Fail(400, "filename is required")
 	}
-	typ := Str(b["content_type"])
+	typ := Str(body["content_type"])
 	if typ == "" {
 		typ = mime.TypeByExtension(filepath.Ext(filename))
 	}
 	if typ == "" {
 		typ = "application/octet-stream"
 	}
-	provider := s.UploadProvider(q)
-	if provider == "native" && s.Config.UsesR2ForMedia() {
+	provider := handler.UploadProvider(req)
+	if provider == "native" && handler.Config.UsesR2ForMedia() {
 		Fail(410, "Use the R2 multipart upload endpoints")
 	}
-	u := models.Upload{ID: Token(), UserID: q.User.ID, Provider: provider, Kind: kind, Key: kind + "/" + Token() + filepath.Ext(filename), ContentType: typ, Filename: filename, Status: "pending"}
+	upload := models.Upload{ID: Token(), UserID: req.User.ID, Provider: provider, Kind: kind, Key: kind + "/" + Token() + filepath.Ext(filename), ContentType: typ, Filename: filename, Status: "pending"}
 	out := map[string]any{}
 	if provider == "native" {
-		client := s.GoogleClient(q.R.Context())
-		payload, _ := json.Marshal(map[string]any{"name": u.Key, "contentType": typ})
-		target := "https://storage.googleapis.com/upload/storage/v1/b/" + url.PathEscape(s.Config.GCSBucket) + "/o?uploadType=resumable"
-		req, e := http.NewRequestWithContext(q.R.Context(), "POST", target, bytes.NewReader(payload))
-		Check(e)
-		req.Header.Set("Content-Type", "application/json")
-		res, e := client.Do(req)
-		Check(e)
+		client := handler.GoogleClient(req.R.Context())
+		payload, _ := json.Marshal(map[string]any{"name": upload.Key, "contentType": typ})
+		target := "https://storage.googleapis.com/upload/storage/v1/b/" + url.PathEscape(handler.Config.GCSBucket) + "/o?uploadType=resumable"
+		httpReq, err := http.NewRequestWithContext(req.R.Context(), "POST", target, bytes.NewReader(payload))
+		Check(err)
+		httpReq.Header.Set("Content-Type", "application/json")
+		res, err := client.Do(httpReq)
+		Check(err)
 		defer res.Body.Close()
 		if res.StatusCode/100 != 2 {
 			Fail(502, "GCS resumable upload failed")
 		}
-		u.RemoteID = res.Header.Get("Location")
-		out["resumable_url"] = u.RemoteID
-		out["upload_url"] = u.RemoteID
+		upload.RemoteID = res.Header.Get("Location")
+		out["resumable_url"] = upload.RemoteID
+		out["upload_url"] = upload.RemoteID
 	} else if provider != "local" {
-		store := s.StorageFor(provider)
-		id, e := store.Initiate(q.R.Context(), u.Key, typ)
-		Check(e)
-		u.RemoteID = id
+		store := handler.StorageFor(provider)
+		id, err := store.Initiate(req.R.Context(), upload.Key, typ)
+		Check(err)
+		upload.RemoteID = id
 	}
-	Check(s.DB.Create(&u).Error)
-	out["upload_id"] = u.ID
-	out["key"] = u.Key
+	Check(handler.DB.Create(&upload).Error)
+	out["upload_id"] = upload.ID
+	out["key"] = upload.Key
 	out["content_type"] = typ
 	if provider == "local" {
-		out["url"] = strings.TrimRight(s.Config.PublicURL, "/") + "/uploads/" + u.ID
+		out["url"] = strings.TrimRight(handler.Config.PublicURL, "/") + "/uploads/" + upload.ID
 		out["upload_url"] = out["url"]
 	}
 	return out
 }
-func (s *Handler) PendingUpload(q *Request) models.Upload {
-	b := q.Body()
-	var u models.Upload
-	id := Str(b["upload_id"])
+func (handler *Handler) PendingUpload(req *Request) models.Upload {
+	body := req.Body()
+	var upload models.Upload
+	id := Str(body["upload_id"])
 	if id == "" {
 		Fail(400, "upload_id is required")
 	}
-	Check(s.DB.First(&u, "id = ? AND user_id = ?", id, q.User.ID).Error)
-	if u.Kind != strings.Split(strings.TrimPrefix(q.R.URL.Path, "/"), "/")[0] || (u.Provider != s.UploadProvider(q) && u.Provider != s.legacyUploadProvider(q)) {
+	Check(handler.DB.First(&upload, "id = ? AND user_id = ?", id, req.User.ID).Error)
+	if upload.Kind != strings.Split(strings.TrimPrefix(req.R.URL.Path, "/"), "/")[0] || (upload.Provider != handler.UploadProvider(req) && upload.Provider != handler.legacyUploadProvider(req)) {
 		Fail(400, "Provider mismatch")
 	}
-	if u.Status != "pending" {
+	if upload.Status != "pending" {
 		Fail(409, "Upload is already complete")
 	}
-	if key := Str(b["key"]); key != "" && key != u.Key {
+	if key := Str(body["key"]); key != "" && key != upload.Key {
 		Fail(400, "Upload key mismatch")
 	}
-	return u
+	return upload
 }
-func (s *Handler) UploadPart(q *Request) any {
-	u := s.PendingUpload(q)
-	if u.Provider == "local" {
-		return map[string]any{"url": strings.TrimRight(s.Config.PublicURL, "/") + "/uploads/" + u.ID}
+func (handler *Handler) UploadPart(req *Request) any {
+	upload := handler.PendingUpload(req)
+	if upload.Provider == "local" {
+		return map[string]any{"url": strings.TrimRight(handler.Config.PublicURL, "/") + "/uploads/" + upload.ID}
 	}
-	n := int32(1)
-	if v, ok := q.Body()["part_number"]; ok {
-		n = int32(Num(v))
+	partNumber := int32(1)
+	if value, ok := req.Body()["part_number"]; ok {
+		partNumber = int32(Num(value))
 	}
-	if n < 1 || n > 10000 {
+	if partNumber < 1 || partNumber > 10000 {
 		Fail(400, "Invalid part number")
 	}
-	signed, e := s.StorageFor(u.Provider).PartURL(q.R.Context(), u.Key, u.RemoteID, n)
-	Check(e)
+	signed, err := handler.StorageFor(upload.Provider).PartURL(req.R.Context(), upload.Key, upload.RemoteID, partNumber)
+	Check(err)
 	return map[string]any{"url": signed}
 }
-func (s *Handler) UploadPut(q *Request) any {
-	var u models.Upload
-	Check(s.DB.First(&u, "id = ? AND user_id = ? AND status = ?", q.Param("upload"), q.User.ID, "pending").Error)
-	if u.Provider != "local" {
+func (handler *Handler) UploadPut(req *Request) any {
+	var upload models.Upload
+	Check(handler.DB.First(&upload, "id = ? AND user_id = ? AND status = ?", req.Param("upload"), req.User.ID, "pending").Error)
+	if upload.Provider != "local" {
 		Fail(400, "Not a local upload")
 	}
-	path := filepath.Join(s.Config.MediaDir, u.Key)
+	path := filepath.Join(handler.Config.MediaDir, upload.Key)
 	Check(os.MkdirAll(filepath.Dir(path), 0755))
-	f, e := os.CreateTemp(filepath.Dir(path), ".upload-*")
-	Check(e)
-	defer os.Remove(f.Name())
-	defer f.Close()
-	q.R.Body = http.MaxBytesReader(q.W, q.R.Body, 512<<20)
-	if _, e = io.Copy(f, q.R.Body); e != nil {
+	file, err := os.CreateTemp(filepath.Dir(path), ".upload-*")
+	Check(err)
+	defer os.Remove(file.Name())
+	defer file.Close()
+	req.R.Body = http.MaxBytesReader(req.W, req.R.Body, 512<<20)
+	if _, err = io.Copy(file, req.R.Body); err != nil {
 		Fail(400, "Upload failed or exceeds 512 MiB")
 	}
-	Check(f.Close())
-	Check(os.Rename(f.Name(), path))
+	Check(file.Close())
+	Check(os.Rename(file.Name(), path))
 	return map[string]any{"status": "uploaded"}
 }
-func (s *Handler) UploadComplete(q *Request) any {
-	u := s.PendingUpload(q)
-	b := q.Body()
-	if u.Provider == "local" {
-		if st, e := os.Stat(filepath.Join(s.Config.MediaDir, u.Key)); e != nil || st.Size() == 0 {
+func (handler *Handler) UploadComplete(req *Request) any {
+	upload := handler.PendingUpload(req)
+	body := req.Body()
+	if upload.Provider == "local" {
+		if st, err := os.Stat(filepath.Join(handler.Config.MediaDir, upload.Key)); err != nil || st.Size() == 0 {
 			Fail(400, "Upload the file first")
 		}
-	} else if u.Provider == "native" {
-		req, e := http.NewRequestWithContext(q.R.Context(), "GET", "https://storage.googleapis.com/storage/v1/b/"+url.PathEscape(s.Config.GCSBucket)+"/o/"+url.PathEscape(u.Key), nil)
-		Check(e)
-		res, e := s.GoogleClient(q.R.Context()).Do(req)
-		Check(e)
+	} else if upload.Provider == "native" {
+		httpReq, err := http.NewRequestWithContext(req.R.Context(), "GET", "https://storage.googleapis.com/storage/v1/b/"+url.PathEscape(handler.Config.GCSBucket)+"/o/"+url.PathEscape(upload.Key), nil)
+		Check(err)
+		res, err := handler.GoogleClient(req.R.Context()).Do(httpReq)
+		Check(err)
 		defer res.Body.Close()
 		if res.StatusCode != 200 {
 			Fail(400, "GCS object is not uploaded")
 		}
 	} else {
-		parts, ok := b["parts"].([]any)
+		parts, ok := body["parts"].([]any)
 		if !ok || len(parts) == 0 || len(parts) > 10000 {
 			Fail(400, "parts is required")
 		}
 		completed := []types.CompletedPart{}
 		seen := map[int32]bool{}
-		for _, v := range parts {
-			p, ok := v.(map[string]any)
+		for _, part := range parts {
+			entry, ok := part.(map[string]any)
 			if !ok {
 				Fail(400, "Invalid part")
 			}
-			n := int32(Num(p["PartNumber"]))
-			etag := Str(p["ETag"])
-			if n < 1 || n > 10000 || etag == "" || seen[n] {
+			partNumber := int32(Num(entry["PartNumber"]))
+			etag := Str(entry["ETag"])
+			if partNumber < 1 || partNumber > 10000 || etag == "" || seen[partNumber] {
 				Fail(400, "Invalid part")
 			}
-			seen[n] = true
-			completed = append(completed, types.CompletedPart{PartNumber: aws.Int32(n), ETag: aws.String(etag)})
+			seen[partNumber] = true
+			completed = append(completed, types.CompletedPart{PartNumber: aws.Int32(partNumber), ETag: aws.String(etag)})
 		}
-		sort.Slice(completed, func(i, j int) bool { return *completed[i].PartNumber < *completed[j].PartNumber })
-		Check(s.StorageFor(u.Provider).Complete(q.R.Context(), u.Key, u.RemoteID, completed))
+		sort.Slice(completed, func(left, right int) bool { return *completed[left].PartNumber < *completed[right].PartNumber })
+		Check(handler.StorageFor(upload.Provider).Complete(req.R.Context(), upload.Key, upload.RemoteID, completed))
 	}
 	var resource any
-	q.Tx(func(tx *gorm.DB) error {
+	req.Tx(func(tx *gorm.DB) error {
 		var lock models.Upload
-		Check(tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&lock, "id = ?", u.ID).Error)
+		Check(tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&lock, "id = ?", upload.ID).Error)
 		if lock.Status != "pending" {
 			Fail(409, "Upload already complete")
 		}
-		key := u.Key
-		if u.Provider == "local" {
+		key := upload.Key
+		if upload.Provider == "local" {
 			key = "local/" + key
 		}
-		r, g, a := "", "", ""
-		switch u.Provider {
+		r2Key, gcsKey, s3Key := "", "", ""
+		switch upload.Provider {
 		case "r2":
-			r = key
+			r2Key = key
 		case "gcs", "native":
-			g = key
+			gcsKey = key
 		default:
-			a = key
+			s3Key = key
 		}
-		switch u.Kind {
+		switch upload.Kind {
 		case "photos":
-			v := models.Photo{UserID: Ptr(q.User.ID), S3Key: a, GCSKey: g, R2Key: r, Filename: u.Filename, Status: "draft", FriendlyToken: Token()[:12], Title: Str(b["title"])}
-			Check(tx.Create(&v).Error)
-			u.ResourceID = v.ID
-			resource = safeMedia(v)
+			video := models.Photo{UserID: Ptr(req.User.ID), S3Key: s3Key, GCSKey: gcsKey, R2Key: r2Key, Filename: upload.Filename, Status: "draft", FriendlyToken: Token()[:12], Title: Str(body["title"])}
+			Check(tx.Create(&video).Error)
+			upload.ResourceID = video.ID
+			resource = safeMedia(video)
 		case "tracks":
-			v := models.Track{UserID: Ptr(q.User.ID), S3Key: a, GCSKey: g, R2Key: r, Filename: u.Filename, Status: "draft", Name: Str(b["name"]), TrackURI: Token()}
-			Check(tx.Create(&v).Error)
-			u.ResourceID = v.ID
-			resource = safeMedia(v)
+			track := models.Track{UserID: Ptr(req.User.ID), S3Key: s3Key, GCSKey: gcsKey, R2Key: r2Key, Filename: upload.Filename, Status: "draft", Name: Str(body["name"]), TrackURI: Token()}
+			Check(tx.Create(&track).Error)
+			upload.ResourceID = track.ID
+			resource = safeMedia(track)
 		case "videos":
-			v := models.Video{UserID: Ptr(q.User.ID), S3Key: a, GCSKey: g, R2Key: r, Filename: u.Filename, Status: "draft", Visibility: "private", Title: Str(b["title"])}
-			Check(tx.Create(&v).Error)
-			u.ResourceID = v.ID
-			resource = safeMedia(v)
+			photo := models.Video{UserID: Ptr(req.User.ID), S3Key: s3Key, GCSKey: gcsKey, R2Key: r2Key, Filename: upload.Filename, Status: "draft", Visibility: "private", Title: Str(body["title"])}
+			Check(tx.Create(&photo).Error)
+			upload.ResourceID = photo.ID
+			resource = safeMedia(photo)
 		default:
 			Fail(400, "Unknown media type")
 		}
-		u.Status = "completed"
-		return tx.Save(&u).Error
+		upload.Status = "completed"
+		return tx.Save(&upload).Error
 	})
-	location := s.MediaURL(func() string {
-		if u.Provider == "r2" {
-			return u.Key
+	location := handler.MediaURL(func() string {
+		if upload.Provider == "r2" {
+			return upload.Key
 		}
 		return ""
 	}(), func() string {
-		if u.Provider == "gcs" || u.Provider == "native" {
-			return u.Key
+		if upload.Provider == "gcs" || upload.Provider == "native" {
+			return upload.Key
 		}
 		return ""
 	}(), func() string {
-		if u.Provider == "local" {
-			return "local/" + u.Key
+		if upload.Provider == "local" {
+			return "local/" + upload.Key
 		}
-		if u.Provider == "s3" {
-			return u.Key
+		if upload.Provider == "s3" {
+			return upload.Key
 		}
 		return ""
 	}())
-	return map[string]any{"status": "completed", "id": u.ResourceID, "location": location, "resource": resource}
+	return map[string]any{"status": "completed", "id": upload.ResourceID, "location": location, "resource": resource}
 }
-func (s *Handler) CancelUpload(q *Request) any {
-	u := s.PendingUpload(q)
-	if u.Provider != "local" && u.Provider != "native" {
-		Check(s.StorageFor(u.Provider).Abort(q.R.Context(), u.Key, u.RemoteID))
+func (handler *Handler) CancelUpload(req *Request) any {
+	upload := handler.PendingUpload(req)
+	if upload.Provider != "local" && upload.Provider != "native" {
+		Check(handler.StorageFor(upload.Provider).Abort(req.R.Context(), upload.Key, upload.RemoteID))
 	}
-	Check(s.DB.Model(&u).Update("status", "cancelled").Error)
+	Check(handler.DB.Model(&upload).Update("status", "cancelled").Error)
 	return map[string]any{"status": "cancelled"}
 }

@@ -5,11 +5,11 @@ import (
 	. "litloop/backend/internal/httpapi"
 )
 
-func (s *Handler) LaunchSpot(q *Request) any {
-	q.Admin()
-	if s.Config.SpotURL == "" {
+func (handler *Handler) LaunchSpot(req *Request) any {
+	req.Admin()
+	if handler.Config.SpotURL == "" {
 		Fail(503, "SPOT_LAUNCH_URL is not configured")
 	}
-	payload, _ := json.Marshal(q.Body())
-	return s.FetchJSON(q, "POST", s.Config.SpotURL, payload, map[string]string{"Content-Type": "application/json", "Authorization": "Bearer " + s.Config.TranscriptionSecret})
+	payload, _ := json.Marshal(req.Body())
+	return handler.FetchJSON(req, "POST", handler.Config.SpotURL, payload, map[string]string{"Content-Type": "application/json", "Authorization": "Bearer " + handler.Config.TranscriptionSecret})
 }

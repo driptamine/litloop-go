@@ -15,39 +15,39 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func (s *Handler) MultipartUpload(q *Request) storage.UploadedFile {
-	q.R.Body = http.MaxBytesReader(q.W, q.R.Body, 64<<20)
-	if e := q.R.ParseMultipartForm(8 << 20); e != nil {
+func (handler *Handler) MultipartUpload(req *Request) storage.UploadedFile {
+	req.R.Body = http.MaxBytesReader(req.W, req.R.Body, 64<<20)
+	if err := req.R.ParseMultipartForm(8 << 20); err != nil {
 		Fail(400, "Invalid multipart upload or file exceeds 64 MiB")
 	}
-	if q.R.MultipartForm != nil {
-		defer q.R.MultipartForm.RemoveAll()
+	if req.R.MultipartForm != nil {
+		defer req.R.MultipartForm.RemoveAll()
 	}
-	f, head, e := q.R.FormFile("file")
-	if e != nil {
-		f, head, e = q.R.FormFile("avatar")
+	file, head, err := req.R.FormFile("file")
+	if err != nil {
+		file, head, err = req.R.FormFile("avatar")
 	}
-	if e != nil {
-		f, head, e = q.R.FormFile("image")
+	if err != nil {
+		file, head, err = req.R.FormFile("image")
 	}
 	for _, field := range []string{"icon", "banner", "background_image"} {
-		if e == nil {
+		if err == nil {
 			break
 		}
-		f, head, e = q.R.FormFile(field)
+		file, head, err = req.R.FormFile(field)
 	}
-	if e != nil {
+	if err != nil {
 		Fail(400, "file is required")
 	}
-	defer f.Close()
-	return s.SaveUploadedFile(q, f, head)
+	defer file.Close()
+	return handler.SaveUploadedFile(req, file, head)
 }
-func (s *Handler) SaveUploadedFile(q *Request, f multipart.File, head *multipart.FileHeader) storage.UploadedFile {
+func (handler *Handler) SaveUploadedFile(req *Request, file multipart.File, head *multipart.FileHeader) storage.UploadedFile {
 	filename := filepath.Base(head.Filename)
-	chatUpload := q.R.URL.Path == "/chats/upload" && s.Config.UsesR2ForMedia()
+	chatUpload := req.R.URL.Path == "/chats/upload" && handler.Config.UsesR2ForMedia()
 	prefix := "attachments/"
 	if chatUpload {
-		prefix = storage.ChatAttachmentPrefix(q.User.ID)
+		prefix = storage.ChatAttachmentPrefix(req.User.ID)
 	}
 	name := Token() + strings.ToLower(filepath.Ext(filename))
 	if chatUpload && (strings.ContainsAny(name, `/\`) || strings.Contains(name, "..")) {
@@ -56,93 +56,93 @@ func (s *Handler) SaveUploadedFile(q *Request, f multipart.File, head *multipart
 	key := prefix + name
 	typ := head.Header.Get("Content-Type")
 	sample := make([]byte, 512)
-	n, _ := io.ReadFull(f, sample)
-	detected := http.DetectContentType(sample[:n])
+	parsed, _ := io.ReadFull(file, sample)
+	detected := http.DetectContentType(sample[:parsed])
 	if !strings.HasPrefix(detected, "application/octet-stream") {
 		typ = detected
 	}
-	_, err := f.Seek(0, io.SeekStart)
+	_, err := file.Seek(0, io.SeekStart)
 	Check(err)
 	provider := "local"
-	if s.Config.UsesR2ForMedia() || strings.Contains(q.R.URL.Path, "/r2") {
+	if handler.Config.UsesR2ForMedia() || strings.Contains(req.R.URL.Path, "/r2") {
 		provider = "r2"
-	} else if strings.Contains(q.R.URL.Path, "/gcs") {
+	} else if strings.Contains(req.R.URL.Path, "/gcs") {
 		provider = "gcs"
 	}
-	stableImage := strings.Contains(q.R.URL.Path, "avatar") || strings.Contains(q.R.URL.Path, "/icon/") || strings.Contains(q.R.URL.Path, "/banner/") || strings.Contains(q.R.URL.Path, "background-image")
+	stableImage := strings.Contains(req.R.URL.Path, "avatar") || strings.Contains(req.R.URL.Path, "/icon/") || strings.Contains(req.R.URL.Path, "/banner/") || strings.Contains(req.R.URL.Path, "background-image")
 	if stableImage {
 		if !strings.HasPrefix(detected, "image/") || detected == "image/svg+xml" {
 			Fail(400, "A raster image is required")
 		}
 	}
 	if provider == "local" {
-		path := filepath.Join(s.Config.MediaDir, key)
+		path := filepath.Join(handler.Config.MediaDir, key)
 		Check(os.MkdirAll(filepath.Dir(path), 0755))
-		out, e := os.Create(path)
-		Check(e)
-		_, e = io.Copy(out, f)
+		out, fileErr := os.Create(path)
+		Check(fileErr)
+		_, fileErr = io.Copy(out, file)
 		closeErr := out.Close()
-		Check(e)
+		Check(fileErr)
 		Check(closeErr)
 		key = "local/" + key
 	} else {
-		Check(s.StorageFor(provider).Put(q.R.Context(), key, typ, f))
+		Check(handler.StorageFor(provider).Put(req.R.Context(), key, typ, file))
 	}
 	uri := ""
 	if provider == "local" {
-		uri = s.LocalURL(strings.TrimPrefix(key, "local/"))
+		uri = handler.LocalURL(strings.TrimPrefix(key, "local/"))
 	} else if chatUpload {
-		uri = storage.PresignedURL(s.Config, "r2", key)
+		uri = storage.PresignedURL(handler.Config, "r2", key)
 		if uri == "" {
 			Fail(502, "Could not sign the chat attachment URL")
 		}
 	} else if provider == "r2" {
-		uri = s.MediaURL(key, "", "")
+		uri = handler.MediaURL(key, "", "")
 	} else {
-		uri = s.MediaURL("", key, "")
+		uri = handler.MediaURL("", key, "")
 	}
 	if stableImage {
-		a := models.Asset{ID: Token(), UserID: q.User.ID, Key: key, Provider: provider, ContentType: detected}
-		Check(s.DB.Create(&a).Error)
-		uri = strings.TrimRight(s.Config.PublicURL, "/") + "/assets/" + a.ID
+		asset := models.Asset{ID: Token(), UserID: req.User.ID, Key: key, Provider: provider, ContentType: detected}
+		Check(handler.DB.Create(&asset).Error)
+		uri = strings.TrimRight(handler.Config.PublicURL, "/") + "/assets/" + asset.ID
 	}
 	return storage.UploadedFile{Provider: provider, Key: key, URL: uri, Name: filename}
 }
-func (s *Handler) Attachment(q *Request) any {
-	if strings.HasPrefix(q.R.URL.Path, "/communities/") {
-		s.CommunityRole(s.Community(q), q.User, false)
+func (handler *Handler) Attachment(req *Request) any {
+	if strings.HasPrefix(req.R.URL.Path, "/communities/") {
+		handler.CommunityRole(handler.Community(req), req.User, false)
 	}
-	file := s.MultipartUpload(q)
+	file := handler.MultipartUpload(req)
 	uri, name := file.URL, file.Name
-	if strings.Contains(q.R.URL.Path, "avatar") {
-		Check(s.DB.Model(q.User).Update("avatar", uri).Error)
-		return map[string]any{"avatar": uri, "user": Get[models.User](s.DB, q.User.ID)}
+	if strings.Contains(req.R.URL.Path, "avatar") {
+		Check(handler.DB.Model(req.User).Update("avatar", uri).Error)
+		return map[string]any{"avatar": uri, "user": Get[models.User](handler.DB, req.User.ID)}
 	}
-	if strings.Contains(q.R.URL.Path, "background-image") {
-		p := models.Profile{UserID: q.User.ID, BackgroundImage: uri}
-		Check(s.DB.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "user_id"}}, DoUpdates: clause.AssignmentColumns([]string{"background_image"})}).Create(&p).Error)
+	if strings.Contains(req.R.URL.Path, "background-image") {
+		profile := models.Profile{UserID: req.User.ID, BackgroundImage: uri}
+		Check(handler.DB.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "user_id"}}, DoUpdates: clause.AssignmentColumns([]string{"background_image"})}).Create(&profile).Error)
 		return map[string]any{"background_image_url": uri}
 	}
-	if strings.HasPrefix(q.R.URL.Path, "/communities/") {
-		c := s.Community(q)
-		s.CommunityRole(c, q.User, false)
+	if strings.HasPrefix(req.R.URL.Path, "/communities/") {
+		community := handler.Community(req)
+		handler.CommunityRole(community, req.User, false)
 		col := "icon"
-		if strings.Contains(q.R.URL.Path, "/banner/") {
+		if strings.Contains(req.R.URL.Path, "/banner/") {
 			col = "banner"
 		}
-		Check(s.DB.Model(&c).Update(col, uri).Error)
-		return s.CommunityJSON(Get[models.Community](s.DB, c.ID), q.User)
+		Check(handler.DB.Model(&community).Update(col, uri).Error)
+		return handler.CommunityJSON(Get[models.Community](handler.DB, community.ID), req.User)
 	}
-	if strings.Contains(q.R.URL.Path, "/voice/") {
-		duration, _ := strconv.ParseFloat(q.R.FormValue("duration"), 64)
+	if strings.Contains(req.R.URL.Path, "/voice/") {
+		duration, _ := strconv.ParseFloat(req.R.FormValue("duration"), 64)
 		if duration < 0 {
 			Fail(400, "Invalid duration")
 		}
-		v := models.VoiceMessage{UserID: Ptr(q.User.ID), Filename: name, Duration: duration, TranscriptionStatus: "not_requested"}
-		v.R2Key, v.GCSKey, v.S3Key = file.Keys()
-		Check(s.DB.Create(&v).Error)
-		q.Status = 201
-		return map[string]any{"success": true, "id": v.ID, "url": uri, "duration": duration}
+		voice := models.VoiceMessage{UserID: Ptr(req.User.ID), Filename: name, Duration: duration, TranscriptionStatus: "not_requested"}
+		voice.R2Key, voice.GCSKey, voice.S3Key = file.Keys()
+		Check(handler.DB.Create(&voice).Error)
+		req.Status = 201
+		return map[string]any{"success": true, "id": voice.ID, "url": uri, "duration": duration}
 	}
 	typ := "file"
 	ext := strings.ToLower(filepath.Ext(name))

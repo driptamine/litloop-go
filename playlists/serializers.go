@@ -5,12 +5,12 @@ import (
 	"litloop/backend/internal/models"
 )
 
-func (s *Handler) PlaylistJSON(p models.Playlist) map[string]any {
-	o := Object(p)
-	o["name"] = p.Title
-	o["user"] = nil
-	if p.UserID != nil {
-		o["user"] = Get[models.User](s.DB, *p.UserID).Username
+func (handler *Handler) PlaylistJSON(playlist models.Playlist) map[string]any {
+	out := Object(playlist)
+	out["name"] = playlist.Title
+	out["user"] = nil
+	if playlist.UserID != nil {
+		out["user"] = Get[models.User](handler.DB, *playlist.UserID).Username
 	}
-	return o
+	return out
 }

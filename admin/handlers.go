@@ -10,16 +10,16 @@ import (
 	"gorm.io/gorm"
 )
 
-func (s *Handler) Admin(q *Request) any {
-	q.Admin()
+func (handler *Handler) Admin(req *Request) any {
+	req.Admin()
 	registry := map[string]any{}
 	names := []string{}
-	for _, m := range models.All() {
-		name := m.(interface{ TableName() string }).TableName()
-		registry[name] = m
+	for _, entry := range models.All() {
+		name := entry.(interface{ TableName() string }).TableName()
+		registry[name] = entry
 		names = append(names, name)
 	}
-	table := q.Param("table")
+	table := req.Param("table")
 	if table == "" {
 		return map[string]any{"tables": names}
 	}
@@ -29,37 +29,37 @@ func (s *Handler) Admin(q *Request) any {
 	}
 	typ := reflect.TypeOf(model).Elem()
 	dst := reflect.New(typ).Interface()
-	id := q.Param("id")
-	if q.R.Method == "GET" {
+	id := req.Param("id")
+	if req.R.Method == "GET" {
 		if id != "" {
-			Check(s.DB.First(dst, "id = ?", id).Error)
+			Check(handler.DB.First(dst, "id = ?", id).Error)
 			return dst
 		}
 		list := reflect.New(reflect.SliceOf(typ)).Interface()
-		return q.Page(s.DB.Model(model).Order("id"), list, func(v any) any { return v })
+		return req.Page(handler.DB.Model(model).Order("id"), list, func(value any) any { return value })
 	}
-	if q.R.Method == "DELETE" {
+	if req.R.Method == "DELETE" {
 		if id == "" {
 			Fail(400, "ID required")
 		}
-		q.Tx(func(tx *gorm.DB) error { return DeleteRecord(tx, table, Num(id)) })
-		q.Status = 204
+		req.Tx(func(tx *gorm.DB) error { return DeleteRecord(tx, table, Num(id)) })
+		req.Status = 204
 		return nil
 	}
 	if table == "users_user" || strings.HasPrefix(table, "go_") {
 		Fail(400, "Use the dedicated API for users and internal records")
 	}
 	if id != "" {
-		Check(s.DB.First(dst, "id = ?", id).Error)
+		Check(handler.DB.First(dst, "id = ?", id).Error)
 	}
-	b := q.Body()
-	delete(b, "id")
-	encoded, e := json.Marshal(b)
-	Check(e)
+	body := req.Body()
+	delete(body, "id")
+	encoded, err := json.Marshal(body)
+	Check(err)
 	Check(json.Unmarshal(encoded, dst))
-	Check(s.DB.Save(dst).Error)
+	Check(handler.DB.Save(dst).Error)
 	if id == "" {
-		q.Status = 201
+		req.Status = 201
 	}
 	return dst
 }

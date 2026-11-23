@@ -6,48 +6,48 @@ import (
 	"strings"
 )
 
-func (s *Handler) Watchlist(q *Request) any {
+func (handler *Handler) Watchlist(req *Request) any {
 	uid := int64(0)
-	if username := q.Param("username"); username != "" {
-		var u models.User
-		Check(s.DB.First(&u, "username = ?", username).Error)
-		uid = u.ID
+	if username := req.Param("username"); username != "" {
+		var user models.User
+		Check(handler.DB.First(&user, "username = ?", username).Error)
+		uid = user.ID
 	} else {
-		if q.User == nil {
+		if req.User == nil {
 			Fail(401, "Authentication required")
 		}
-		uid = q.User.ID
+		uid = req.User.ID
 	}
-	return s.WatchlistFor(q, uid, strings.HasSuffix(q.R.URL.Path, "/ratings"))
+	return handler.WatchlistFor(req, uid, strings.HasSuffix(req.R.URL.Path, "/ratings"))
 }
-func (s *Handler) WatchlistFor(q *Request, uid int64, ratings bool) any {
+func (handler *Handler) WatchlistFor(req *Request, uid int64, ratings bool) any {
 	defaultSize := 10
 	if ratings {
 		defaultSize = 20
 	}
-	page, size := Pagination(q, defaultSize, "page_size")
-	shuffle := strings.HasSuffix(q.R.URL.Path, "/ammy_shuffle")
+	page, size := Pagination(req, defaultSize, "page_size")
+	shuffle := strings.HasSuffix(req.R.URL.Path, "/ammy_shuffle")
 	var total int64
 	out := []any{}
 	if ratings {
-		db := s.DB.Model(&models.ImdbMovieRating{}).Where("user_id = ?", uid)
+		db := handler.DB.Model(&models.ImdbMovieRating{}).Where("user_id = ?", uid)
 		Check(db.Count(&total).Error)
-		for _, r := range All[models.ImdbMovieRating](db.Order("date_rated DESC, updated_at DESC").Offset((page - 1) * size).Limit(size)) {
-			m := Get[models.ImdbMovie](s.DB, r.ImdbMovieID)
-			o := imdbJSON(m)
-			o["rating"] = r.Rating
-			o["user_rating"] = r.Rating
-			o["date_rated"] = Date(r.DateRated)
-			o["created_at"] = r.CreatedAt
-			o["updated_at"] = r.UpdatedAt
-			out = append(out, o)
+		for _, rating := range All[models.ImdbMovieRating](db.Order("date_rated DESC, updated_at DESC").Offset((page - 1) * size).Limit(size)) {
+			movie := Get[models.ImdbMovie](handler.DB, rating.ImdbMovieID)
+			movieJSON := imdbJSON(movie)
+			movieJSON["rating"] = rating.Rating
+			movieJSON["user_rating"] = rating.Rating
+			movieJSON["date_rated"] = Date(rating.DateRated)
+			movieJSON["created_at"] = rating.CreatedAt
+			movieJSON["updated_at"] = rating.UpdatedAt
+			out = append(out, movieJSON)
 		}
 	} else {
-		db := s.DB.Model(&models.WatchlistItem{}).Where("user_id = ?", uid)
+		db := handler.DB.Model(&models.WatchlistItem{}).Where("user_id = ?", uid)
 		Check(db.Count(&total).Error)
 		if shuffle {
 			size = int(total)
-			if raw := q.R.URL.Query().Get("limit"); raw != "" {
+			if raw := req.R.URL.Query().Get("limit"); raw != "" {
 				size = int(Num(raw))
 				if size < 0 {
 					Fail(400, "Invalid limit")
@@ -57,16 +57,16 @@ func (s *Handler) WatchlistFor(q *Request, uid int64, ratings bool) any {
 		} else {
 			db = db.Order("date_rated DESC, id DESC").Offset((page - 1) * size).Limit(size)
 		}
-		for _, w := range All[models.WatchlistItem](db) {
-			m := Get[models.ImdbMovie](s.DB, w.MovieID)
-			o := imdbJSON(m)
-			o["your_rating"] = w.UserRating
-			o["user_rating"] = w.UserRating
-			o["date_rated"] = Date(w.DateRated)
-			o["watched"] = w.Watched
-			o["notes"] = w.Notes
-			o["date_added"] = w.DateAdded.Format("2006-01-02")
-			out = append(out, o)
+		for _, watchlistItem := range All[models.WatchlistItem](db) {
+			movie := Get[models.ImdbMovie](handler.DB, watchlistItem.MovieID)
+			movieJSON := imdbJSON(movie)
+			movieJSON["your_rating"] = watchlistItem.UserRating
+			movieJSON["user_rating"] = watchlistItem.UserRating
+			movieJSON["date_rated"] = Date(watchlistItem.DateRated)
+			movieJSON["watched"] = watchlistItem.Watched
+			movieJSON["notes"] = watchlistItem.Notes
+			movieJSON["date_added"] = watchlistItem.DateAdded.Format("2006-01-02")
+			out = append(out, movieJSON)
 		}
 	}
 	if !shuffle && int64((page-1)*size) >= total && page > 1 {
@@ -89,7 +89,7 @@ func (s *Handler) WatchlistFor(q *Request, uid int64, ratings bool) any {
 	} else {
 		result["watchlist"] = out
 	}
-	if name := q.Param("username"); name != "" {
+	if name := req.Param("username"); name != "" {
 		result["username"] = name
 	}
 	return result

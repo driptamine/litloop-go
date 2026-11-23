@@ -8,24 +8,24 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func (s *Handler) PageTags(q *Request) any {
-	if q.Param("tag") != "" {
-		t := Get[models.PageTag](s.DB, q.ID("tag"))
-		s.OwnedPage(q, t.PageID)
-		Check(s.DB.Delete(&t).Error)
+func (handler *Handler) PageTags(req *Request) any {
+	if req.Param("tag") != "" {
+		tag := Get[models.PageTag](handler.DB, req.ID("tag"))
+		handler.OwnedPage(req, tag.PageID)
+		Check(handler.DB.Delete(&tag).Error)
 		return map[string]any{"message": "Tag deleted"}
 	}
-	p := s.OwnedPage(q, q.ID("id"))
-	if q.R.Method == "GET" {
-		return All[models.PageTag](s.DB.Where("page_id = ?", p.ID).Order("name"))
+	page := handler.OwnedPage(req, req.ID("id"))
+	if req.R.Method == "GET" {
+		return All[models.PageTag](handler.DB.Where("page_id = ?", page.ID).Order("name"))
 	}
-	name := strings.ToLower(strings.TrimSpace(Str(q.Body()["name"])))
+	name := strings.ToLower(strings.TrimSpace(Str(req.Body()["name"])))
 	if name == "" || len([]rune(name)) > 50 {
 		Fail(400, "name must contain 1–50 characters")
 	}
-	t := models.PageTag{PageID: p.ID, Name: name}
-	Check(s.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&t).Error)
-	Check(s.DB.First(&t, "page_id = ? AND name = ?", p.ID, name).Error)
-	q.Status = 201
-	return t
+	tag := models.PageTag{PageID: page.ID, Name: name}
+	Check(handler.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&tag).Error)
+	Check(handler.DB.First(&tag, "page_id = ? AND name = ?", page.ID, name).Error)
+	req.Status = 201
+	return tag
 }

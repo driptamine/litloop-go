@@ -9,36 +9,36 @@ import (
 // JSON preserves JSON values across both PostgreSQL and SQLite drivers.
 type JSON json.RawMessage
 
-func (j JSON) Value() (driver.Value, error) {
-	if len(j) == 0 {
+func (raw JSON) Value() (driver.Value, error) {
+	if len(raw) == 0 {
 		return "[]", nil
 	}
-	return string(j), nil
+	return string(raw), nil
 }
-func (j *JSON) Scan(v any) error {
-	switch x := v.(type) {
+func (raw *JSON) Scan(value any) error {
+	switch value := value.(type) {
 	case nil:
-		*j = JSON("[]")
+		*raw = JSON("[]")
 	case []byte:
-		*j = append((*j)[:0], x...)
+		*raw = append((*raw)[:0], value...)
 	case string:
-		*j = JSON(x)
+		*raw = JSON(value)
 	default:
-		return fmt.Errorf("invalid JSON database value %T", v)
+		return fmt.Errorf("invalid JSON database value %T", value)
 	}
 	return nil
 }
-func (j JSON) MarshalJSON() ([]byte, error) {
-	if len(j) == 0 {
+func (raw JSON) MarshalJSON() ([]byte, error) {
+	if len(raw) == 0 {
 		return []byte("[]"), nil
 	}
-	return j, nil
+	return raw, nil
 }
-func (j *JSON) UnmarshalJSON(b []byte) error {
-	if !json.Valid(b) {
+func (raw *JSON) UnmarshalJSON(data []byte) error {
+	if !json.Valid(data) {
 		return fmt.Errorf("invalid JSON")
 	}
-	*j = append((*j)[:0], b...)
+	*raw = append((*raw)[:0], data...)
 	return nil
 }
-func AsJSON(v any) JSON { b, _ := json.Marshal(v); return b }
+func AsJSON(value any) JSON	{ encoded, _ := json.Marshal(value); return encoded }

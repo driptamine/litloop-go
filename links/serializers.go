@@ -5,10 +5,10 @@ import (
 	"litloop/backend/internal/models"
 )
 
-func (s *Handler) LinkJSON(l models.Link) any {
-	o := Object(l)
+func (handler *Handler) LinkJSON(link models.Link) any {
+	out := Object(link)
 	tags := []string{}
-	Check(s.DB.Model(&models.Hashtag{}).Where("id IN (?)", s.DB.Model(&models.LinkTag{}).Select("hashtag_id").Where("link_id = ?", l.ID)).Order("name").Pluck("name", &tags).Error)
-	o["hashtags"] = tags
-	return o
+	Check(handler.DB.Model(&models.Hashtag{}).Where("id IN (?)", handler.DB.Model(&models.LinkTag{}).Select("hashtag_id").Where("link_id = ?", link.ID)).Order("name").Pluck("name", &tags).Error)
+	out["hashtags"] = tags
+	return out
 }

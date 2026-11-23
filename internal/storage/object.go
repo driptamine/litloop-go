@@ -1,19 +1,19 @@
 package storage
 
 type UploadedFile struct {
-	Provider string
-	Key      string
-	URL      string
-	Name     string
+	Provider	string
+	Key		string
+	URL		string
+	Name		string
 }
 
-func (f UploadedFile) Keys() (r2, gcs, s3 string) {
-	switch f.Provider {
+func (file UploadedFile) Keys() (r2, gcs, s3 string) {
+	switch file.Provider {
 	case "r2":
-		return f.Key, "", ""
+		return file.Key, "", ""
 	case "gcs", "native":
-		return "", f.Key, ""
+		return "", file.Key, ""
 	default:
-		return "", "", f.Key
+		return "", "", file.Key
 	}
 }

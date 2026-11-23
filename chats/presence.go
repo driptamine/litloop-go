@@ -24,9 +24,9 @@ func lastSeen(user models.User) time.Time {
 	return at
 }
 
-func (s *Handler) presenceContacts(user int64) ([]int64, error) {
+func (handler *Handler) presenceContacts(user int64) ([]int64, error) {
 	var contacts []int64
-	err := s.DB.Table("chats_chat_participants AS mine").
+	err := handler.DB.Table("chats_chat_participants AS mine").
 		Select("DISTINCT other.user_id").
 		Joins("JOIN chats_chat_participants AS other ON other.chat_id = mine.chat_id AND other.user_id <> mine.user_id").
 		Joins("JOIN chats_chat AS chat ON chat.id = mine.chat_id").
@@ -35,15 +35,15 @@ func (s *Handler) presenceContacts(user int64) ([]int64, error) {
 	return contacts, err
 }
 
-func (s *Handler) updatePresence(user int64, session string, connected bool, lease time.Duration) {
-	online, changed := s.Hub.SetPresence(user, session, connected, lease)
+func (handler *Handler) updatePresence(user int64, session string, connected bool, lease time.Duration) {
+	online, changed := handler.Hub.SetPresence(user, session, connected, lease)
 	now := time.Now().UTC()
 	if connected || changed {
 		cutoff := now
 		if !changed {
 			cutoff = now.Add(-10 * time.Second)
 		}
-		err := s.DB.Model(&models.User{}).
+		err := handler.DB.Model(&models.User{}).
 			Where("id = ? AND (last_seen_at IS NULL OR last_seen_at < ?)", user, cutoff).
 			UpdateColumn("last_seen_at", now).Error
 		if err != nil {
@@ -53,27 +53,27 @@ func (s *Handler) updatePresence(user int64, session string, connected bool, lea
 	if !changed {
 		return
 	}
-	contacts, err := s.presenceContacts(user)
+	contacts, err := handler.presenceContacts(user)
 	if err != nil {
 		slog.Error("chat presence contacts", "error", err)
 		return
 	}
 	for _, contact := range contacts {
-		s.Hub.Broadcast(fmt.Sprint("user:", contact), map[string]any{
-			"type": "presence_update", "user_id": user, "online": online, "last_seen_at": now,
+		handler.Hub.Broadcast(fmt.Sprint("user:", contact), map[string]any{
+			"type":	"presence_update", "user_id": user, "online": online, "last_seen_at": now,
 		})
 	}
 }
 
-func (s *Handler) presenceSnapshot(user int64) (map[string]any, error) {
-	contacts, err := s.presenceContacts(user)
+func (handler *Handler) presenceSnapshot(user int64) (map[string]any, error) {
+	contacts, err := handler.presenceContacts(user)
 	if err != nil {
 		return nil, err
 	}
 	timestamps := make(map[int64]time.Time, len(contacts))
 	if len(contacts) != 0 {
 		var users []models.User
-		err = s.DB.Select("id", "created_at", "last_login", "last_seen_at").Where("id IN ?", contacts).Find(&users).Error
+		err = handler.DB.Select("id", "created_at", "last_login", "last_seen_at").Where("id IN ?", contacts).Find(&users).Error
 		if err != nil {
 			return nil, err
 		}
@@ -84,42 +84,42 @@ func (s *Handler) presenceSnapshot(user int64) (map[string]any, error) {
 		}
 	}
 	return map[string]any{
-		"type": "presence_snapshot", "users": s.Hub.Presence(contacts), "last_seen_at": timestamps,
+		"type":	"presence_snapshot", "users": handler.Hub.Presence(contacts), "last_seen_at": timestamps,
 	}, nil
 }
 
-func (s *Handler) Presence(q *Request) any {
-	q.W.Header().Set("Cache-Control", "no-store")
-	switch q.R.Method {
+func (handler *Handler) Presence(req *Request) any {
+	req.W.Header().Set("Cache-Control", "no-store")
+	switch req.R.Method {
 	case http.MethodPost, http.MethodDelete:
-		connected := q.R.Method == http.MethodPost
-		id := q.R.URL.Query().Get("session_id")
+		connected := req.R.Method == http.MethodPost
+		id := req.R.URL.Query().Get("session_id")
 		if connected {
-			id = Str(q.Body()["session_id"])
+			id = Str(req.Body()["session_id"])
 		}
 		if !sessionIDPattern.MatchString(id) {
 			Fail(400, "Invalid presence session")
 		}
-		s.updatePresence(q.User.ID, "http:"+id, connected, httpPresenceLease)
+		handler.updatePresence(req.User.ID, "http:"+id, connected, httpPresenceLease)
 		if !connected {
 			return map[string]any{"status": "ok"}
 		}
 	}
-	event, err := s.presenceSnapshot(q.User.ID)
+	event, err := handler.presenceSnapshot(req.User.ID)
 	Check(err)
 	return event
 }
 
-func (s *Handler) sendPresence(p *Peer, user int64) {
-	event, err := s.presenceSnapshot(user)
+func (handler *Handler) sendPresence(peer *Peer, user int64) {
+	event, err := handler.presenceSnapshot(user)
 	if err != nil {
 		slog.Error("chat presence snapshot", "error", err)
 		return
 	}
 	select {
-	case p.Send <- event:
-	case <-p.Done:
+	case peer.Send <- event:
+	case <-peer.Done:
 	default:
-		p.Close()
+		peer.Close()
 	}
 }

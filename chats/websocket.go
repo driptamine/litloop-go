@@ -13,8 +13,8 @@ import (
 	Websocket "github.com/gorilla/websocket"
 )
 
-func (s *Handler) Websocket(q *Request) any {
-	Notifications := q.Param("id") == ""
+func (handler *Handler) Websocket(req *Request) any {
+	Notifications := req.Param("id") == ""
 	room := ""
 	var notificationUser int64
 	var presenceSession string
@@ -22,45 +22,45 @@ func (s *Handler) Websocket(q *Request) any {
 		presenceSession = rand.Text()
 	}
 	if !Notifications {
-		s.ChatAccess(q, q.ID("id"))
-		room = fmt.Sprint(q.ID("id"))
-	} else if q.User != nil {
-		notificationUser = q.User.ID
-		room = "user:" + fmt.Sprint(q.User.ID)
+		handler.ChatAccess(req, req.ID("id"))
+		room = fmt.Sprint(req.ID("id"))
+	} else if req.User != nil {
+		notificationUser = req.User.ID
+		room = "user:" + fmt.Sprint(req.User.ID)
 	}
-	up := Websocket.Upgrader{CheckOrigin: func(r *http.Request) bool {
-		origin := r.Header.Get("Origin")
+	up := Websocket.Upgrader{CheckOrigin: func(httpReq *http.Request) bool {
+		origin := httpReq.Header.Get("Origin")
 		if origin == "" {
 			return true
 		}
-		for _, o := range s.Config.Origins {
-			if o == origin {
+		for _, allowedOrigin := range handler.Config.Origins {
+			if allowedOrigin == origin {
 				return true
 			}
 		}
 		return false
 	}}
-	Conn, e := up.Upgrade(q.W, q.R, nil)
-	if e != nil {
-		q.Status = 0
+	Conn, err := up.Upgrade(req.W, req.R, nil)
+	if err != nil {
+		req.Status = 0
 		return nil
 	}
-	q.Status = 0
-	p := &Peer{Conn: Conn, Send: make(chan any, 64), Done: make(chan struct{})}
-	defer p.Close()
+	req.Status = 0
+	peer := &Peer{Conn: Conn, Send: make(chan any, 64), Done: make(chan struct{})}
+	defer peer.Close()
 	defer func() {
 		if room != "" {
-			s.Hub.Remove(room, p)
+			handler.Hub.Remove(room, peer)
 		}
 		if notificationUser != 0 {
-			s.updatePresence(notificationUser, presenceSession, false, 0)
+			handler.updatePresence(notificationUser, presenceSession, false, 0)
 		}
 	}()
 	if room != "" {
-		s.Hub.Add(room, p)
+		handler.Hub.Add(room, peer)
 	}
 	if notificationUser != 0 {
-		s.updatePresence(notificationUser, presenceSession, true, 0)
+		handler.updatePresence(notificationUser, presenceSession, true, 0)
 	}
 	Conn.SetReadLimit(1 << 20)
 	_ = Conn.SetReadDeadline(time.Now().Add(70 * time.Second))
@@ -69,22 +69,22 @@ func (s *Handler) Websocket(q *Request) any {
 			return err
 		}
 		if notificationUser != 0 {
-			s.updatePresence(notificationUser, presenceSession, true, 0)
-			s.sendPresence(p, notificationUser)
+			handler.updatePresence(notificationUser, presenceSession, true, 0)
+			handler.sendPresence(peer, notificationUser)
 		}
 		return nil
 	})
 	go func() {
 		tick := time.NewTicker(25 * time.Second)
 		defer tick.Stop()
-		defer p.Close()
+		defer peer.Close()
 		for {
 			select {
-			case <-p.Done:
+			case <-peer.Done:
 				return
-			case v := <-p.Send:
+			case message := <-peer.Send:
 				_ = Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-				if Conn.WriteJSON(v) != nil {
+				if Conn.WriteJSON(message) != nil {
 					return
 				}
 			case <-tick.C:
@@ -95,65 +95,65 @@ func (s *Handler) Websocket(q *Request) any {
 		}
 	}()
 	for {
-		var b map[string]any
-		if Conn.ReadJSON(&b) != nil {
+		var payload map[string]any
+		if Conn.ReadJSON(&payload) != nil {
 			break
 		}
 		func() {
 			defer func() {
-				if v := recover(); v != nil {
+				if recovered := recover(); recovered != nil {
 					msg := "Message failed"
-					if e, ok := v.(Error); ok {
-						msg = e.Message
+					if err, ok := recovered.(Error); ok {
+						msg = err.Message
 					}
 					select {
-					case p.Send <- map[string]any{"type": "error", "message": msg}:
+					case peer.Send <- map[string]any{"type": "error", "message": msg}:
 					default:
 					}
 				}
 			}()
 			if Notifications {
-				switch Str(b["type"]) {
+				switch Str(payload["type"]) {
 				case "auth":
-					c := s.Claims(Str(b["token"]), "access")
-					if c == nil {
+					claims := handler.Claims(Str(payload["token"]), "access")
+					if claims == nil {
 						Fail(401, "Invalid token")
 					}
-					u := Get[models.User](s.DB, c["user_id"])
-					if !u.IsActive {
+					user := Get[models.User](handler.DB, claims["user_id"])
+					if !user.IsActive {
 						Fail(401, "Inactive user")
 					}
-					if notificationUser != u.ID {
+					if notificationUser != user.ID {
 						if room != "" {
-							s.Hub.Remove(room, p)
-							s.updatePresence(notificationUser, presenceSession, false, 0)
+							handler.Hub.Remove(room, peer)
+							handler.updatePresence(notificationUser, presenceSession, false, 0)
 						}
-						notificationUser = u.ID
-						room = "user:" + strconv.FormatInt(u.ID, 10)
-						s.Hub.Add(room, p)
-						s.updatePresence(u.ID, presenceSession, true, 0)
+						notificationUser = user.ID
+						room = "user:" + strconv.FormatInt(user.ID, 10)
+						handler.Hub.Add(room, peer)
+						handler.updatePresence(user.ID, presenceSession, true, 0)
 					}
-					p.Send <- map[string]any{"type": "auth_ok"}
-					p.Send <- map[string]any{"type": "unread_update", "unread_count": s.UnreadMessages(u.ID)}
-					s.sendPresence(p, u.ID)
+					peer.Send <- map[string]any{"type": "auth_ok"}
+					peer.Send <- map[string]any{"type": "unread_update", "unread_count": handler.UnreadMessages(user.ID)}
+					handler.sendPresence(peer, user.ID)
 				case "presence":
 					if notificationUser != 0 {
-						s.sendPresence(p, notificationUser)
+						handler.sendPresence(peer, notificationUser)
 					}
 				}
 				return
 			}
-			if !s.Member(q.ID("id"), q.User.ID) {
+			if !handler.Member(req.ID("id"), req.User.ID) {
 				Fail(403, "Chat membership required")
 			}
-			typ := Str(b["type"])
+			typ := Str(payload["type"])
 			if typ == "" || typ == "chat_message" || typ == "send_message" {
-				s.SaveMessage(q.ID("id"), *q.User, b)
+				handler.SaveMessage(req.ID("id"), *req.User, payload)
 			} else if typ == "typing" {
-				s.Hub.Broadcast(room, map[string]any{"type": "typing", "user_id": q.User.ID, "username": q.User.Username, "is_typing": b["is_typing"]})
+				handler.Hub.Broadcast(room, map[string]any{"type": "typing", "user_id": req.User.ID, "username": req.User.Username, "is_typing": payload["is_typing"]})
 			} else if strings.HasPrefix(typ, "voip_") {
-				if s.VoIP(q, b) {
-					s.broadcastCall(q, b)
+				if handler.VoIP(req, payload) {
+					handler.broadcastCall(req, payload)
 				}
 			}
 		}()

@@ -10,59 +10,59 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func (s *Handler) CommunityPosts(q *Request) any {
-	c := s.Community(q)
-	path := q.R.URL.Path
+func (handler *Handler) CommunityPosts(req *Request) any {
+	community := handler.Community(req)
+	path := req.R.URL.Path
 	if strings.HasSuffix(path, "/request") {
-		b := q.Body()
+		body := req.Body()
 		var membership models.CommunityMembership
-		Check(s.DB.First(&membership, "community_id = ? AND user_id = ?", c.ID, q.User.ID).Error)
+		Check(handler.DB.First(&membership, "community_id = ? AND user_id = ?", community.ID, req.User.ID).Error)
 		var cp models.CommunityPost
-		q.Tx(func(tx *gorm.DB) error {
-			var p models.Post
-			if id, ok := b["post_id"]; ok {
-				p = Get[models.Post](tx, Num(id))
-				Owned(Val(p.AuthorID), q.User.ID)
+		req.Tx(func(tx *gorm.DB) error {
+			var post models.Post
+			if id, ok := body["post_id"]; ok {
+				post = Get[models.Post](tx, Num(id))
+				Owned(Val(post.AuthorID), req.User.ID)
 			} else {
-				title, description := strings.TrimSpace(Clean(Str(b["title"]))), strings.TrimSpace(Clean(Str(b["description"])))
-				if title == "" && description == "" && len(IDs(b["photo_ids"]))+len(IDs(b["video_ids"]))+len(IDs(b["track_ids"]))+len(IDs(b["playlist_ids"])) == 0 {
+				title, description := strings.TrimSpace(Clean(Str(body["title"]))), strings.TrimSpace(Clean(Str(body["description"])))
+				if title == "" && description == "" && len(IDs(body["photo_ids"]))+len(IDs(body["video_ids"]))+len(IDs(body["track_ids"]))+len(IDs(body["playlist_ids"])) == 0 {
 					Fail(400, "title, description, or media is required")
 				}
 				if len([]rune(description)) > 100 {
 					Fail(400, "description exceeds 100 characters")
 				}
-				p = models.Post{Title: Truncate(title, 99), Description: description, AuthorID: Ptr(q.User.ID), FriendlyID: Token()[:12]}
-				Check(tx.Create(&p).Error)
-				s.LinkPost(tx, p, b, q.User.ID)
+				post = models.Post{Title: Truncate(title, 99), Description: description, AuthorID: Ptr(req.User.ID), FriendlyID: Token()[:12]}
+				Check(tx.Create(&post).Error)
+				handler.LinkPost(tx, post, body, req.User.ID)
 			}
-			cp = models.CommunityPost{CommunityID: c.ID, PostID: p.ID, RequestedByID: q.User.ID, Status: "pending"}
+			cp = models.CommunityPost{CommunityID: community.ID, PostID: post.ID, RequestedByID: req.User.ID, Status: "pending"}
 			if membership.Role == "admin" || membership.Role == "moderator" {
 				cp.Status = "approved"
-				cp.ReviewedByID = Ptr(q.User.ID)
+				cp.ReviewedByID = Ptr(req.User.ID)
 				cp.ReviewedAt = Ptr(time.Now())
 			}
 			return tx.Create(&cp).Error
 		})
-		q.Status = 201
-		o := s.CommunityPostJSON(cp, q.User)
+		req.Status = 201
+		postJSON := handler.CommunityPostJSON(cp, req.User)
 
-		o["post_id"] = cp.PostID
-		if _, ok := b["post_id"]; ok {
-			o["id"] = cp.ID
+		postJSON["post_id"] = cp.PostID
+		if _, ok := body["post_id"]; ok {
+			postJSON["id"] = cp.ID
 		}
-		return o
+		return postJSON
 	}
-	if q.Param("cp") != "" {
-		cp := Get[models.CommunityPost](s.DB.Where("community_id = ?", c.ID), q.ID("cp"))
-		if q.R.Method == "DELETE" {
-			if !(cp.RequestedByID == q.User.ID && cp.Status == "pending") {
-				s.CommunityRole(c, q.User, true)
+	if req.Param("cp") != "" {
+		cp := Get[models.CommunityPost](handler.DB.Where("community_id = ?", community.ID), req.ID("cp"))
+		if req.R.Method == "DELETE" {
+			if !(cp.RequestedByID == req.User.ID && cp.Status == "pending") {
+				handler.CommunityRole(community, req.User, true)
 			}
-			Check(s.DB.Delete(&cp).Error)
+			Check(handler.DB.Delete(&cp).Error)
 			return map[string]any{"deleted": true, "post_id": cp.PostID}
 		}
-		s.CommunityRole(c, q.User, true)
-		q.Tx(func(tx *gorm.DB) error {
+		handler.CommunityRole(community, req.User, true)
+		req.Tx(func(tx *gorm.DB) error {
 			Check(tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&cp, cp.ID).Error)
 			if cp.Status != "pending" {
 				Fail(400, "Post is already "+cp.Status)
@@ -71,18 +71,18 @@ func (s *Handler) CommunityPosts(q *Request) any {
 			if strings.HasSuffix(path, "/reject") {
 				status = "rejected"
 			}
-			return tx.Model(&cp).Updates(map[string]any{"status": status, "reviewed_by_id": q.User.ID, "reviewed_at": time.Now()}).Error
+			return tx.Model(&cp).Updates(map[string]any{"status": status, "reviewed_by_id": req.User.ID, "reviewed_at": time.Now()}).Error
 		})
-		return s.CommunityPostJSON(Get[models.CommunityPost](s.DB, cp.ID), q.User)
+		return handler.CommunityPostJSON(Get[models.CommunityPost](handler.DB, cp.ID), req.User)
 	}
 	status := "approved"
 	if strings.HasSuffix(path, "/pending") {
-		s.CommunityRole(c, q.User, true)
+		handler.CommunityRole(community, req.User, true)
 		status = "pending"
 	}
 	out := []any{}
-	for _, cp := range All[models.CommunityPost](s.DB.Where("community_id = ? AND status = ?", c.ID, status).Order("created_at DESC")) {
-		out = append(out, s.CommunityPostJSON(cp, q.User))
+	for _, cp := range All[models.CommunityPost](handler.DB.Where("community_id = ? AND status = ?", community.ID, status).Order("created_at DESC")) {
+		out = append(out, handler.CommunityPostJSON(cp, req.User))
 	}
 	return map[string]any{"posts": out}
 }

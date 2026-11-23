@@ -8,106 +8,106 @@ import (
 	"gorm.io/gorm"
 )
 
-func (s *Handler) Todos(q *Request) any {
-	db := s.DB.Where("user_id = ?", q.User.ID)
-	if q.Param("id") != "" {
-		return s.TodoJSON(Get[models.Todo](db, q.ID("id")))
+func (handler *Handler) Todos(req *Request) any {
+	db := handler.DB.Where("user_id = ?", req.User.ID)
+	if req.Param("id") != "" {
+		return handler.TodoJSON(Get[models.Todo](db, req.ID("id")))
 	}
-	if id := q.R.URL.Query().Get("list_id"); id != "" {
+	if id := req.R.URL.Query().Get("list_id"); id != "" {
 		db = db.Where("todo_list_id = ?", id)
 	}
 	out := []any{}
-	for _, t := range All[models.Todo](db.Order("\"order\", id")) {
-		out = append(out, s.TodoJSON(t))
+	for _, todo := range All[models.Todo](db.Order("\"order\", id")) {
+		out = append(out, handler.TodoJSON(todo))
 	}
-	var p models.Profile
-	_ = s.DB.First(&p, "user_id = ?", q.User.ID).Error
-	return map[string]any{"todos": out, "background_image_url": p.BackgroundImage}
+	var profile models.Profile
+	_ = handler.DB.First(&profile, "user_id = ?", req.User.ID).Error
+	return map[string]any{"todos": out, "background_image_url": profile.BackgroundImage}
 }
-func (s *Handler) TodoWrite(q *Request) any {
-	t := models.Todo{UserID: Ptr(q.User.ID)}
-	creating := q.Param("id") == ""
+func (handler *Handler) TodoWrite(req *Request) any {
+	todo := models.Todo{UserID: Ptr(req.User.ID)}
+	creating := req.Param("id") == ""
 	if !creating {
-		t = Get[models.Todo](s.DB.Where("user_id = ?", q.User.ID), q.ID("id"))
+		todo = Get[models.Todo](handler.DB.Where("user_id = ?", req.User.ID), req.ID("id"))
 	}
-	if q.R.Method == "DELETE" {
-		Check(s.DB.Delete(&t).Error)
+	if req.R.Method == "DELETE" {
+		Check(handler.DB.Delete(&todo).Error)
 		return map[string]any{"message": "Todo deleted"}
 	}
-	b := q.Body()
-	if v, ok := b["title"]; ok {
-		t.Title = Str(v)
+	body := req.Body()
+	if value, ok := body["title"]; ok {
+		todo.Title = Str(value)
 	}
-	if len([]rune(t.Title)) > 255 {
+	if len([]rune(todo.Title)) > 255 {
 		Fail(400, "title too long")
 	}
-	if v, ok := b["completed"]; ok {
-		t.Completed = Boolean(v)
+	if value, ok := body["completed"]; ok {
+		todo.Completed = Boolean(value)
 	}
-	if v, ok := b["order"]; ok {
-		t.Order = Num(v)
+	if value, ok := body["order"]; ok {
+		todo.Order = Num(value)
 	}
-	if v, ok := b["todo_list"]; ok {
-		t.TodoListID = nil
-		if v != nil {
-			list := Get[models.TodoList](s.DB.Where("user_id = ?", q.User.ID), Num(v))
-			t.TodoListID = Ptr(list.ID)
+	if value, ok := body["todo_list"]; ok {
+		todo.TodoListID = nil
+		if value != nil {
+			list := Get[models.TodoList](handler.DB.Where("user_id = ?", req.User.ID), Num(value))
+			todo.TodoListID = Ptr(list.ID)
 		}
 	}
-	Check(s.DB.Save(&t).Error)
+	Check(handler.DB.Save(&todo).Error)
 	if creating {
-		q.Status = 201
+		req.Status = 201
 	}
-	return s.TodoJSON(t)
+	return handler.TodoJSON(todo)
 }
-func (s *Handler) TodoLists(q *Request) any {
-	out := All[models.TodoList](s.DB.Where("user_id = ?", q.User.ID).Order("\"order\", id"))
+func (handler *Handler) TodoLists(req *Request) any {
+	out := All[models.TodoList](handler.DB.Where("user_id = ?", req.User.ID).Order("\"order\", id"))
 	return out
 }
-func (s *Handler) TodoListWrite(q *Request) any {
-	list := models.TodoList{UserID: q.User.ID}
-	creating := q.Param("id") == ""
+func (handler *Handler) TodoListWrite(req *Request) any {
+	list := models.TodoList{UserID: req.User.ID}
+	creating := req.Param("id") == ""
 	if !creating {
-		list = Get[models.TodoList](s.DB.Where("user_id = ?", q.User.ID), q.ID("id"))
+		list = Get[models.TodoList](handler.DB.Where("user_id = ?", req.User.ID), req.ID("id"))
 	}
-	if q.R.Method == "DELETE" {
-		q.Tx(func(tx *gorm.DB) error { return DeleteRecord(tx, "todos_todolist", list.ID) })
+	if req.R.Method == "DELETE" {
+		req.Tx(func(tx *gorm.DB) error { return DeleteRecord(tx, "todos_todolist", list.ID) })
 		return map[string]any{"message": "List deleted"}
 	}
-	b := q.Body()
-	if v, ok := b["name"]; ok {
-		list.Name = strings.TrimSpace(Str(v))
+	body := req.Body()
+	if value, ok := body["name"]; ok {
+		list.Name = strings.TrimSpace(Str(value))
 	}
 	if list.Name == "" || len([]rune(list.Name)) > 255 {
 		Fail(400, "name must contain 1–255 characters")
 	}
-	if v, ok := b["order"]; ok {
-		list.Order = Num(v)
+	if value, ok := body["order"]; ok {
+		list.Order = Num(value)
 	}
-	Check(s.DB.Save(&list).Error)
+	Check(handler.DB.Save(&list).Error)
 	if creating {
-		q.Status = 201
+		req.Status = 201
 	}
 	return list
 }
-func (s *Handler) Reorder(q *Request) any {
-	items, ok := q.Body()["items"].([]any)
+func (handler *Handler) Reorder(req *Request) any {
+	items, ok := req.Body()["items"].([]any)
 	if !ok || len(items) > 1000 {
 		Fail(400, "Expected at most 1000 items")
 	}
 	table := "todos_todo"
-	if strings.Contains(q.R.URL.Path, "/lists/") {
+	if strings.Contains(req.R.URL.Path, "/lists/") {
 		table = "todos_todolist"
 	}
-	q.Tx(func(tx *gorm.DB) error {
-		for _, v := range items {
-			o, ok := v.(map[string]any)
+	req.Tx(func(tx *gorm.DB) error {
+		for _, item := range items {
+			entry, ok := item.(map[string]any)
 			if !ok {
 				Fail(400, "Invalid item")
 			}
-			r := tx.Table(table).Where("id = ? AND user_id = ?", Num(o["id"]), q.User.ID).Update("order", Num(o["order"]))
-			Check(r.Error)
-			if r.RowsAffected == 0 {
+			query := tx.Table(table).Where("id = ? AND user_id = ?", Num(entry["id"]), req.User.ID).Update("order", Num(entry["order"]))
+			Check(query.Error)
+			if query.RowsAffected == 0 {
 				Fail(404, "Item not found")
 			}
 		}

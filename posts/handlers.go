@@ -11,76 +11,76 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func (s *Handler) PostWrite(q *Request) any {
-	var p models.Post
-	if q.Param("id") != "" {
-		p = Get[models.Post](s.DB, q.ID("id"))
-		Owned(Val(p.AuthorID), q.User.ID)
+func (handler *Handler) PostWrite(req *Request) any {
+	var post models.Post
+	if req.Param("id") != "" {
+		post = Get[models.Post](handler.DB, req.ID("id"))
+		Owned(Val(post.AuthorID), req.User.ID)
 	} else {
-		p = models.Post{AuthorID: Ptr(q.User.ID), FriendlyID: Token()[:12]}
+		post = models.Post{AuthorID: Ptr(req.User.ID), FriendlyID: Token()[:12]}
 	}
-	if q.R.Method == "DELETE" {
-		q.Tx(func(tx *gorm.DB) error { return DeleteRecord(tx, "posts_post", p.ID) })
-		q.Status = 204
+	if req.R.Method == "DELETE" {
+		req.Tx(func(tx *gorm.DB) error { return DeleteRecord(tx, "posts_post", post.ID) })
+		req.Status = 204
 		return nil
 	}
-	b := q.Body()
-	if v, ok := b["title"]; ok {
-		p.Title = Truncate(Clean(Str(v)), 99)
+	body := req.Body()
+	if value, ok := body["title"]; ok {
+		post.Title = Truncate(Clean(Str(value)), 99)
 	}
-	if v, ok := b["description"]; ok {
-		p.Description = Clean(Str(v))
+	if value, ok := body["description"]; ok {
+		post.Description = Clean(Str(value))
 	}
-	if len([]rune(p.Description)) > 100 {
+	if len([]rune(post.Description)) > 100 {
 		Fail(400, "description exceeds 100 characters")
 	}
-	creating := p.ID == 0
-	q.Tx(func(tx *gorm.DB) error {
-		Check(tx.Save(&p).Error)
-		s.PostFiles(q, tx, p, b)
-		s.LinkPost(tx, p, b, q.User.ID)
+	creating := post.ID == 0
+	req.Tx(func(tx *gorm.DB) error {
+		Check(tx.Save(&post).Error)
+		handler.PostFiles(req, tx, post, body)
+		handler.LinkPost(tx, post, body, req.User.ID)
 		return nil
 	})
 	if creating {
-		q.Status = 201
+		req.Status = 201
 	}
-	o := s.PostJSON(p, q.User)
+	out := handler.PostJSON(post, req.User)
 	if creating {
-		o["post_id"] = p.ID
-		o["success"] = true
-		o["message"] = "Post created successfully"
+		out["post_id"] = post.ID
+		out["success"] = true
+		out["message"] = "Post created successfully"
 		for _, key := range []string{"photo_ids", "video_ids", "track_ids"} {
-			if v, ok := b[key]; ok {
-				o[key] = v
+			if value, ok := body[key]; ok {
+				out[key] = value
 			}
 		}
-		if strings.HasSuffix(q.R.URL.Path, "/create_post_with_line_breaks") {
-			o["content"] = strings.ReplaceAll(Str(b["description"]), "\n", "<br/>")
+		if strings.HasSuffix(req.R.URL.Path, "/create_post_with_line_breaks") {
+			out["content"] = strings.ReplaceAll(Str(body["description"]), "\n", "<br/>")
 		}
 	}
-	return o
+	return out
 }
-func (s *Handler) Posts(q *Request) any {
-	db := s.DB.Model(&models.Post{})
-	if q.Param("username") != "" {
-		var u models.User
-		Check(s.DB.First(&u, "username = ?", q.Param("username")).Error)
-		db = db.Where("author_id = ?", u.ID)
-	} else if strings.HasSuffix(q.R.URL.Path, "/me") {
-		db = db.Where("author_id = ?", q.User.ID)
+func (handler *Handler) Posts(req *Request) any {
+	db := handler.DB.Model(&models.Post{})
+	if req.Param("username") != "" {
+		var user models.User
+		Check(handler.DB.First(&user, "username = ?", req.Param("username")).Error)
+		db = db.Where("author_id = ?", user.ID)
+	} else if strings.HasSuffix(req.R.URL.Path, "/me") {
+		db = db.Where("author_id = ?", req.User.ID)
 	}
 	var total int64
 	Check(db.Count(&total).Error)
 	db = db.Order("created_at DESC, id DESC")
 	page, size := 1, 20
-	feed := strings.HasSuffix(q.R.URL.Path, "/feed")
+	feed := strings.HasSuffix(req.R.URL.Path, "/feed")
 	if feed {
-		page, _ = strconv.Atoi(q.R.URL.Query().Get("page"))
+		page, _ = strconv.Atoi(req.R.URL.Query().Get("page"))
 		if page < 1 {
 			page = 1
 		}
-		if v, e := strconv.Atoi(q.R.URL.Query().Get("page_size")); e == nil && v > 0 {
-			size = v
+		if value, err := strconv.Atoi(req.R.URL.Query().Get("page_size")); err == nil && value > 0 {
+			size = value
 		}
 		if size > 100 {
 			size = 100
@@ -88,10 +88,10 @@ func (s *Handler) Posts(q *Request) any {
 		db = db.Offset((page - 1) * size).Limit(size)
 	}
 	items := []any{}
-	for _, p := range All[models.Post](db) {
-		items = append(items, s.PostJSON(p, q.User))
+	for _, post := range All[models.Post](db) {
+		items = append(items, handler.PostJSON(post, req.User))
 	}
-	if !feed && !strings.HasSuffix(q.R.URL.Path, "/list") && !strings.HasSuffix(q.R.URL.Path, "/list_no_drf") {
+	if !feed && !strings.HasSuffix(req.R.URL.Path, "/list") && !strings.HasSuffix(req.R.URL.Path, "/list_no_drf") {
 		return items
 	}
 	result := map[string]any{"posts": items}
@@ -108,25 +108,25 @@ func (s *Handler) Posts(q *Request) any {
 	}
 	return result
 }
-func (s *Handler) PostLike(q *Request) any {
-	id := q.ID("id")
+func (handler *Handler) PostLike(req *Request) any {
+	id := req.ID("id")
 	var liked bool
 	var count int64
-	q.Tx(func(tx *gorm.DB) error {
-		var p models.Post
-		Check(tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&p, id).Error)
+	req.Tx(func(tx *gorm.DB) error {
+		var post models.Post
+		Check(tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&post, id).Error)
 		var like models.PostLike
-		e := tx.First(&like, "post_id = ? AND user_id = ?", id, q.User.ID).Error
-		if e == gorm.ErrRecordNotFound {
-			Check(tx.Create(&models.PostLike{PostID: id, UserID: q.User.ID}).Error)
+		err := tx.First(&like, "post_id = ? AND user_id = ?", id, req.User.ID).Error
+		if err == gorm.ErrRecordNotFound {
+			Check(tx.Create(&models.PostLike{PostID: id, UserID: req.User.ID}).Error)
 			liked = true
 		} else {
-			Check(e)
+			Check(err)
 			Check(tx.Delete(&like).Error)
 		}
 		Check(tx.Model(&models.PostLike{}).Where("post_id = ?", id).Count(&count).Error)
-		Check(tx.Model(&p).Update("likes_count", count).Error)
-		return engagement.EnqueueReaction(tx, s.Config, "post", id, q.User.ID, liked)
+		Check(tx.Model(&post).Update("likes_count", count).Error)
+		return engagement.EnqueueReaction(tx, handler.Config, "post", id, req.User.ID, liked)
 	})
 	return map[string]any{"liked": liked, "likes_count": count}
 }

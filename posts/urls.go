@@ -5,34 +5,34 @@ import (
 	"litloop/backend/internal/models"
 )
 
-func Register(s *Server) {
-	s.Route("GET", "/{username}/posts", false, s.Posts)
-	s.Route("POST", "/posts/create", true, s.PostWrite)
-	s.Route("POST", "/posts/create_no_drf", true, s.PostWrite)
-	s.Route("POST", "/posts/create/create_post_with_line_breaks", true, s.PostWrite)
-	s.Route("POST", "/posts/create/v4", true, s.PostWrite)
-	s.Route("POST", "/posts/create/postman", true, s.PostWrite)
-	s.Route("POST", "/posts/create/post_with_videos", true, s.PostWrite)
-	s.Route("POST", "/posts/create_post_api", true, s.PostWrite)
-	s.Route("PUT,PATCH", "/posts/update_no_drf/{id:[0-9]+}", true, s.PostWrite)
-	s.Route("DELETE", "/posts/delete_no_drf/{id:[0-9]+}", true, s.PostWrite)
-	s.Route("GET", "/posts/list", false, s.Posts)
-	s.Route("GET", "/posts/list_no_drf", false, s.Posts)
-	s.Route("GET", "/posts/feed", false, s.Posts)
-	s.Route("GET", "/posts/user/{username}", false, s.Posts)
-	s.Route("GET", "/posts/me", true, s.Posts)
-	s.Route("GET", "/posts/{id:[0-9]+}", false, func(q *Request) any {
-		return s.PostJSON(Get[models.Post](s.DB, q.ID("id")),
-			q.User)
+func Register(server *Server) {
+	server.Route("GET", "/{username}/posts", false, server.Posts)
+	server.Route("POST", "/posts/create", true, server.PostWrite)
+	server.Route("POST", "/posts/create_no_drf", true, server.PostWrite)
+	server.Route("POST", "/posts/create/create_post_with_line_breaks", true, server.PostWrite)
+	server.Route("POST", "/posts/create/v4", true, server.PostWrite)
+	server.Route("POST", "/posts/create/postman", true, server.PostWrite)
+	server.Route("POST", "/posts/create/post_with_videos", true, server.PostWrite)
+	server.Route("POST", "/posts/create_post_api", true, server.PostWrite)
+	server.Route("PUT,PATCH", "/posts/update_no_drf/{id:[0-9]+}", true, server.PostWrite)
+	server.Route("DELETE", "/posts/delete_no_drf/{id:[0-9]+}", true, server.PostWrite)
+	server.Route("GET", "/posts/list", false, server.Posts)
+	server.Route("GET", "/posts/list_no_drf", false, server.Posts)
+	server.Route("GET", "/posts/feed", false, server.Posts)
+	server.Route("GET", "/posts/user/{username}", false, server.Posts)
+	server.Route("GET", "/posts/me", true, server.Posts)
+	server.Route("GET", "/posts/{id:[0-9]+}", false, func(req *Request) any {
+		return server.PostJSON(Get[models.Post](server.DB, req.ID("id")),
+			req.User)
 	})
-	s.Route("GET", "/posts/detail_no_drf/{id:[0-9]+}", false, func(q *Request) any {
-		return s.PostJSON(Get[models.Post](s.DB, q.ID("id")),
-			q.User)
+	server.Route("GET", "/posts/detail_no_drf/{id:[0-9]+}", false, func(req *Request) any {
+		return server.PostJSON(Get[models.Post](server.DB, req.ID("id")),
+			req.User)
 	})
-	s.Route("PUT,PATCH,DELETE", "/posts/{id:[0-9]+}", true, s.PostWrite)
-	s.Route("POST", "/posts/{id:[0-9]+}/like", true, s.PostLike)
-	s.Route("POST", "/posts/impressions/batch", true, s.Impressions)
-	s.Route("GET", "/posts/{id:[0-9]+}/comments", false, s.Comments)
-	s.Route("POST", "/posts/{id:[0-9]+}/comments/create", true, s.CommentCreate)
-	s.Route("GET", "/posts/{id:[0-9]+}/comments/{comment:[0-9]+}", false, s.Comments)
+	server.Route("PUT,PATCH,DELETE", "/posts/{id:[0-9]+}", true, server.PostWrite)
+	server.Route("POST", "/posts/{id:[0-9]+}/like", true, server.PostLike)
+	server.Route("POST", "/posts/impressions/batch", true, server.Impressions)
+	server.Route("GET", "/posts/{id:[0-9]+}/comments", false, server.Comments)
+	server.Route("POST", "/posts/{id:[0-9]+}/comments/create", true, server.CommentCreate)
+	server.Route("GET", "/posts/{id:[0-9]+}/comments/{comment:[0-9]+}", false, server.Comments)
 }

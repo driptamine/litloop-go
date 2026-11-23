@@ -10,11 +10,11 @@ import (
 	"time"
 )
 
-func NativeReadClient(ctx context.Context, c config.Config) (*http.Client, error) {
-	if c.GoogleCredentials != "" {
-		return NativeClient(ctx, c)
+func NativeReadClient(ctx context.Context, appConfig config.Config) (*http.Client, error) {
+	if appConfig.GoogleCredentials != "" {
+		return NativeClient(ctx, appConfig)
 	}
-	if c.GCSBucket == "" {
+	if appConfig.GCSBucket == "" {
 		return nil, fmt.Errorf("native GCS is not configured")
 	}
 	client, err := google.DefaultClient(ctx, "https://www.googleapis.com/auth/devstorage.read_only")
@@ -25,17 +25,17 @@ func NativeReadClient(ctx context.Context, c config.Config) (*http.Client, error
 	return client, nil
 }
 
-func NativeClient(ctx context.Context, c config.Config) (*http.Client, error) {
-	if c.GCSBucket == "" || c.GoogleCredentials == "" {
+func NativeClient(ctx context.Context, appConfig config.Config) (*http.Client, error) {
+	if appConfig.GCSBucket == "" || appConfig.GoogleCredentials == "" {
 		return nil, fmt.Errorf("native GCS is not configured")
 	}
-	data, e := os.ReadFile(c.GoogleCredentials)
-	if e != nil {
-		return nil, e
+	data, err := os.ReadFile(appConfig.GoogleCredentials)
+	if err != nil {
+		return nil, err
 	}
-	jwt, e := google.JWTConfigFromJSON(data, "https://www.googleapis.com/auth/devstorage.read_write")
-	if e != nil {
-		return nil, e
+	jwt, err := google.JWTConfigFromJSON(data, "https://www.googleapis.com/auth/devstorage.read_write")
+	if err != nil {
+		return nil, err
 	}
 	client := jwt.Client(ctx)
 	client.Timeout = 5 * time.Minute

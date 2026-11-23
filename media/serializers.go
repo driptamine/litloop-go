@@ -6,60 +6,60 @@ import (
 	"strings"
 )
 
-func (s *Handler) MediaJSON(v any) map[string]any {
-	o := Object(v)
-	r := Str(o["r2_key"])
-	g := Str(o["gcs_key"])
-	a := Str(o["s3_key"])
-	uri := s.MediaURL(r, g, a)
-	o["url"] = uri
-	o["r2_url"] = uri
-	o["gcs_url"] = uri
-	o["pk"] = o["id"]
-	o["file"] = uri
-	o["file_path"] = r
-	if r == "" {
-		o["file_path"] = g
+func (handler *Handler) MediaJSON(value any) map[string]any {
+	out := Object(value)
+	r2Key := Str(out["r2_key"])
+	gcsKey := Str(out["gcs_key"])
+	s3Key := Str(out["s3_key"])
+	uri := handler.MediaURL(r2Key, gcsKey, s3Key)
+	out["url"] = uri
+	out["r2_url"] = uri
+	out["gcs_url"] = uri
+	out["pk"] = out["id"]
+	out["file"] = uri
+	out["file_path"] = r2Key
+	if r2Key == "" {
+		out["file_path"] = gcsKey
 	}
-	if r == "" && g == "" {
-		o["file_path"] = a
+	if r2Key == "" && gcsKey == "" {
+		out["file_path"] = s3Key
 	}
-	if _, ok := v.(models.Video); ok {
-		o["video_id"] = o["id"]
-		o["name"] = o["title"]
-		o["thumbNail"] = o["thumbnail"]
+	if _, ok := value.(models.Video); ok {
+		out["video_id"] = out["id"]
+		out["name"] = out["title"]
+		out["thumbNail"] = out["thumbnail"]
 		for _, key := range []string{"likes", "dislikes", "views", "impressions"} {
-			o[key+"_count"] = o[key]
+			out[key+"_count"] = out[key]
 		}
 	}
-	if key := Str(o["hls_s3"]); key != "" {
+	if key := Str(out["hls_s3"]); key != "" {
 		if strings.HasPrefix(key, "r2/hls/") {
-			o["hls_url"] = s.LocalURL(key)
+			out["hls_url"] = handler.LocalURL(key)
 		} else {
-			o["hls_url"] = s.MediaURL("", "", key)
+			out["hls_url"] = handler.MediaURL("", "", key)
 		}
 	}
-	if key := Str(o["thumbnail"]); key != "" {
-		uri := s.MediaURL(strings.TrimPrefix(key, "r2/"), "", "")
-		o["thumbnail_url"] = uri
+	if key := Str(out["thumbnail"]); key != "" {
+		uri := handler.MediaURL(strings.TrimPrefix(key, "r2/"), "", "")
+		out["thumbnail_url"] = uri
 		if uri != "" {
-			o["thumbNail"] = uri
-		}
-	}
-	return o
-}
-func (s *Handler) MediaList(v any) any {
-	out := []any{}
-	switch list := v.(type) {
-	case []models.Photo:
-		for _, p := range list {
-			out = append(out, s.MediaJSON(p))
-		}
-	case []models.Video:
-		for _, p := range list {
-			out = append(out, s.MediaJSON(p))
+			out["thumbNail"] = uri
 		}
 	}
 	return out
 }
-func safeMedia(v any) any { return v }
+func (handler *Handler) MediaList(value any) any {
+	out := []any{}
+	switch list := value.(type) {
+	case []models.Photo:
+		for _, photo := range list {
+			out = append(out, handler.MediaJSON(photo))
+		}
+	case []models.Video:
+		for _, video := range list {
+			out = append(out, handler.MediaJSON(video))
+		}
+	}
+	return out
+}
+func safeMedia(value any) any	{ return value }

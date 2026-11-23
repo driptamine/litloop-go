@@ -7,13 +7,13 @@ import (
 
 var TagsRE = regexp.MustCompile(`<[^>]*>`)
 
-func Clean(s string) string { return html.UnescapeString(TagsRE.ReplaceAllString(s, "")) }
-func Truncate(s string, n int) string {
-	r := []rune(s)
-	if len(r) > n {
-		return string(r[:n])
+func Clean(text string) string	{ return html.UnescapeString(TagsRE.ReplaceAllString(text, "")) }
+func Truncate(text string, length int) string {
+	runes := []rune(text)
+	if len(runes) > length {
+		return string(runes[:length])
 	}
-	return s
+	return text
 }
 
 var SlugRE = regexp.MustCompile(`[^\p{L}\p{N}]+`)

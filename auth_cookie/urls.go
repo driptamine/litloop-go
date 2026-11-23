@@ -4,10 +4,10 @@ import (
 	. "litloop/backend/internal/httpapi"
 )
 
-func Register(s *Server) {
-	s.Route("POST", "/auth/login", false, s.Signin)
-	s.Route("POST", "/auth/google/token", false, s.OAuth)
-	s.Route("POST", "/auth/vk/token", false, s.OAuth)
-	s.Route("POST", "/auth/refresh", false, s.Refresh)
-	s.Route("POST", "/auth/logout", true, s.Logout)
+func Register(server *Server) {
+	server.Route("POST", "/auth/login", false, server.Signin)
+	server.Route("POST", "/auth/google/token", false, server.OAuth)
+	server.Route("POST", "/auth/vk/token", false, server.OAuth)
+	server.Route("POST", "/auth/refresh", false, server.Refresh)
+	server.Route("POST", "/auth/logout", true, server.Logout)
 }

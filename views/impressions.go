@@ -8,27 +8,27 @@ import (
 	"gorm.io/gorm"
 )
 
-func (s *Handler) Impressions(q *Request) any {
-	b := q.Body()
+func (handler *Handler) Impressions(req *Request) any {
+	body := req.Body()
 	kind := "post"
 	table := "posts_post"
 	key := "post_ids"
-	if strings.HasPrefix(q.R.URL.Path, "/movies/") {
+	if strings.HasPrefix(req.R.URL.Path, "/movies/") {
 		kind = "movie"
 		table = "movies_movie"
 		key = "movie_ids"
 	}
-	list := IDs(b[key])
+	list := IDs(body[key])
 	if len(list) == 0 || len(list) > 1000 {
 		Fail(400, "Expected 1–1000 IDs")
 	}
-	q.Tx(func(tx *gorm.DB) error {
+	req.Tx(func(tx *gorm.DB) error {
 		for _, id := range list {
 			Check(tx.Table(table).Where("id = ?", id).UpdateColumn("impressions_count", gorm.Expr("impressions_count + 1")).Error)
 			if kind == "post" {
-				Check(tx.Create(&models.PostImpression{PostID: id, UserID: Ptr(q.User.ID)}).Error)
+				Check(tx.Create(&models.PostImpression{PostID: id, UserID: Ptr(req.User.ID)}).Error)
 			} else {
-				Check(tx.Create(&models.MovieImpression{MovieID: id, UserID: Ptr(q.User.ID)}).Error)
+				Check(tx.Create(&models.MovieImpression{MovieID: id, UserID: Ptr(req.User.ID)}).Error)
 			}
 		}
 		return nil

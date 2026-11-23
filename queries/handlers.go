@@ -9,17 +9,17 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func (s *Handler) Query(q *Request) any {
-	term := strings.TrimSpace(q.R.URL.Query().Get("q"))
+func (handler *Handler) Query(req *Request) any {
+	term := strings.TrimSpace(req.R.URL.Query().Get("q"))
 	if term == "" {
-		term = q.R.URL.Query().Get("query")
+		term = req.R.URL.Query().Get("query")
 	}
-	path := q.R.URL.Path
+	path := req.R.URL.Path
 	if strings.HasPrefix(path, "/queries/google/all") {
 		if strings.HasSuffix(path, "/search") && term == "" {
 			Fail(400, "q is required")
 		}
-		db := s.DB.Order("created_at DESC")
+		db := handler.DB.Order("created_at DESC")
 		if term != "" {
 			like := "%" + strings.ToLower(term) + "%"
 			db = db.Where("LOWER(query_text) LIKE ? OR LOWER(suggestion) LIKE ?", like, like)
@@ -35,7 +35,7 @@ func (s *Handler) Query(q *Request) any {
 	target := ""
 	headers := map[string]string{}
 	if strings.Contains(path, "brave") {
-		if s.Config.BraveKey == "" {
+		if handler.Config.BraveKey == "" {
 			Fail(503, "BRAVE_API_KEY is not configured")
 		}
 		kind := "suggest"
@@ -43,17 +43,17 @@ func (s *Handler) Query(q *Request) any {
 			kind = "images"
 		}
 		target = "https://api.search.brave.com/res/v1/" + kind + "/search?q=" + url.QueryEscape(term)
-		headers["X-Subscription-Token"] = s.Config.BraveKey
+		headers["X-Subscription-Token"] = handler.Config.BraveKey
 	} else if strings.Contains(path, "bing") {
-		if s.Config.BingKey == "" {
+		if handler.Config.BingKey == "" {
 			Fail(503, "BING_API_KEY is not configured")
 		}
 		target = "https://api.bing.microsoft.com/v7.0/suggestions?q=" + url.QueryEscape(term)
-		headers["Ocp-Apim-Subscription-Key"] = s.Config.BingKey
+		headers["Ocp-Apim-Subscription-Key"] = handler.Config.BingKey
 	} else {
 		target = "https://suggestqueries.google.com/complete/search?client=firefox&q=" + url.QueryEscape(term)
 	}
-	data := s.FetchJSON(q, "GET", target, nil, headers)
+	data := handler.FetchJSON(req, "GET", target, nil, headers)
 	if strings.Contains(path, "google") {
 		list, ok := data.([]any)
 		if !ok || len(list) < 2 {
@@ -65,7 +65,7 @@ func (s *Handler) Query(q *Request) any {
 		}
 		results := []any{}
 		for _, word := range words {
-			Check(s.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&models.GoogleQuery{QueryText: term, Suggestion: Str(word)}).Error)
+			Check(handler.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&models.GoogleQuery{QueryText: term, Suggestion: Str(word)}).Error)
 			results = append(results, map[string]any{"query": word})
 		}
 		return map[string]any{"results": results}

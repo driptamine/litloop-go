@@ -9,12 +9,12 @@ import (
 	"litloop/backend/internal/storage"
 )
 
-func messageAttachments(m models.Message) []any {
+func messageAttachments(message models.Message) []any {
 	var items []any
-	if len(m.Attachments) == 0 {
+	if len(message.Attachments) == 0 {
 		return nil
 	}
-	if err := json.Unmarshal(m.Attachments, &items); err != nil {
+	if err := json.Unmarshal(message.Attachments, &items); err != nil {
 		return nil
 	}
 	return items
@@ -25,42 +25,42 @@ func messageAttachments(m models.Message) []any {
 // message. Without it, opening a conversation runs hundreds of sequential
 // queries and the request outlives the client's timeout.
 type messageBundle struct {
-	users  map[int64]models.User
-	voices map[int64]models.VoiceMessage
-	owned  map[r2Ownership]bool
+	users	map[int64]models.User
+	voices	map[int64]models.VoiceMessage
+	owned	map[r2Ownership]bool
 }
 
 type r2Ownership struct {
-	userID int64
-	kind   string
-	key    string
+	userID	int64
+	kind	string
+	key	string
 }
 
-func (s *Handler) loadMessageBundle(msgs []models.Message) *messageBundle {
-	b := &messageBundle{
-		users:  map[int64]models.User{},
-		voices: map[int64]models.VoiceMessage{},
-		owned:  map[r2Ownership]bool{},
+func (handler *Handler) loadMessageBundle(msgs []models.Message) *messageBundle {
+	bundle := &messageBundle{
+		users:	map[int64]models.User{},
+		voices:	map[int64]models.VoiceMessage{},
+		owned:	map[r2Ownership]bool{},
 	}
 	if len(msgs) == 0 {
-		return b
+		return bundle
 	}
 	userIDs := make([]int64, 0, len(msgs))
 	seenUsers := map[int64]bool{}
 	msgIDs := make([]int64, 0, len(msgs))
-	for _, m := range msgs {
-		msgIDs = append(msgIDs, m.ID)
-		if m.UserID != nil && !seenUsers[*m.UserID] {
-			seenUsers[*m.UserID] = true
-			userIDs = append(userIDs, *m.UserID)
+	for _, message := range msgs {
+		msgIDs = append(msgIDs, message.ID)
+		if message.UserID != nil && !seenUsers[*message.UserID] {
+			seenUsers[*message.UserID] = true
+			userIDs = append(userIDs, *message.UserID)
 		}
 	}
 	if len(userIDs) > 0 {
-		for _, u := range All[models.User](s.DB.Where("id IN ?", userIDs)) {
-			b.users[u.ID] = u
+		for _, user := range All[models.User](handler.DB.Where("id IN ?", userIDs)) {
+			bundle.users[user.ID] = user
 		}
 	}
-	links := All[models.MessageVoice](s.DB.Where("message_id IN ?", msgIDs))
+	links := All[models.MessageVoice](handler.DB.Where("message_id IN ?", msgIDs))
 	voiceIDs := make([]int64, 0, len(links))
 	seenVoices := map[int64]bool{}
 	for _, link := range links {
@@ -71,48 +71,48 @@ func (s *Handler) loadMessageBundle(msgs []models.Message) *messageBundle {
 	}
 	if len(voiceIDs) > 0 {
 		byID := map[int64]models.VoiceMessage{}
-		for _, v := range All[models.VoiceMessage](s.DB.Where("id IN ?", voiceIDs)) {
-			byID[v.ID] = v
+		for _, voice := range All[models.VoiceMessage](handler.DB.Where("id IN ?", voiceIDs)) {
+			byID[voice.ID] = voice
 		}
 		for _, link := range links {
 			if link.MessageID != nil && link.VoiceMessageID != nil {
-				if v, ok := byID[*link.VoiceMessageID]; ok {
-					b.voices[*link.MessageID] = v
+				if voice, ok := byID[*link.VoiceMessageID]; ok {
+					bundle.voices[*link.MessageID] = voice
 				}
 			}
 		}
 	}
-	b.owned = s.loadR2Ownership(msgs)
-	return b
+	bundle.owned = handler.loadR2Ownership(msgs)
+	return bundle
 }
 
 // loadR2Ownership resolves, with at most one query per media kind, which of
 // the stored attachment keys belong to each message author. Attachments that
 // need no database check (chat-upload filenames, empty keys, legacy signed
 // URLs) never reach a query.
-func (s *Handler) loadR2Ownership(msgs []models.Message) map[r2Ownership]bool {
+func (handler *Handler) loadR2Ownership(msgs []models.Message) map[r2Ownership]bool {
 	owned := map[r2Ownership]bool{}
 	keysByKind := map[string]map[string]bool{}
 	refs := []r2Ownership{}
 	seen := map[r2Ownership]bool{}
-	for _, m := range msgs {
-		if m.UserID == nil {
+	for _, message := range msgs {
+		if message.UserID == nil {
 			continue
 		}
-		for _, raw := range messageAttachments(m) {
+		for _, raw := range messageAttachments(message) {
 			item, ok := raw.(map[string]any)
 			if !ok {
 				continue
 			}
 			key := Str(item["r2_key"])
 			if key == "" {
-				key = s.r2AttachmentKey(Str(item["url"]))
+				key = handler.r2AttachmentKey(Str(item["url"]))
 			}
 			if key == "" {
 				continue
 			}
-			ref := r2Ownership{userID: *m.UserID, kind: Str(item["type"]), key: key}
-			if name, found := strings.CutPrefix(key, storage.ChatAttachmentPrefix(*m.UserID)); found && chatAttachmentFilename(name) {
+			ref := r2Ownership{userID: *message.UserID, kind: Str(item["type"]), key: key}
+			if name, found := strings.CutPrefix(key, storage.ChatAttachmentPrefix(*message.UserID)); found && chatAttachmentFilename(name) {
 				owned[ref] = true
 				continue
 			}
@@ -131,8 +131,8 @@ func (s *Handler) loadR2Ownership(msgs []models.Message) map[r2Ownership]bool {
 		return owned
 	}
 	type ownerRow struct {
-		UserID *int64
-		R2Key  string
+		UserID	*int64
+		R2Key	string
 	}
 	lookup := func(model any, kind string) {
 		keys := make([]string, 0, len(keysByKind[kind]))
@@ -143,7 +143,7 @@ func (s *Handler) loadR2Ownership(msgs []models.Message) map[r2Ownership]bool {
 			return
 		}
 		var rows []ownerRow
-		Check(s.DB.Model(model).Select("user_id, r2_key").Where("r2_key IN ?", keys).Scan(&rows).Error)
+		Check(handler.DB.Model(model).Select("user_id, r2_key").Where("r2_key IN ?", keys).Scan(&rows).Error)
 		ownersByKey := map[string]map[int64]bool{}
 		for _, row := range rows {
 			if row.UserID != nil {
@@ -165,41 +165,41 @@ func (s *Handler) loadR2Ownership(msgs []models.Message) map[r2Ownership]bool {
 	return owned
 }
 
-func (s *Handler) VoiceJSON(v models.VoiceMessage) any {
-	o := Object(v)
-	o["url"] = s.MediaURL(v.R2Key, v.GCSKey, v.S3Key)
-	return o
+func (handler *Handler) VoiceJSON(voice models.VoiceMessage) any {
+	out := Object(voice)
+	out["url"] = handler.MediaURL(voice.R2Key, voice.GCSKey, voice.S3Key)
+	return out
 }
 
-func (s *Handler) messageJSONWith(m models.Message, b *messageBundle) map[string]any {
-	o := Object(m)
-	if attachments, ok := o["attachments"].([]any); ok {
-		s.setAttachmentURLs(attachments, m, b.owned)
+func (handler *Handler) messageJSONWith(message models.Message, bundle *messageBundle) map[string]any {
+	out := Object(message)
+	if attachments, ok := out["attachments"].([]any); ok {
+		handler.setAttachmentURLs(attachments, message, bundle.owned)
 	}
-	o["username"] = "AI"
-	o["avatar"] = nil
-	o["voice_message"] = nil
-	if m.UserID != nil {
-		if u, ok := b.users[*m.UserID]; ok {
-			o["username"] = u.Username
-			o["avatar"] = u.Avatar
+	out["username"] = "AI"
+	out["avatar"] = nil
+	out["voice_message"] = nil
+	if message.UserID != nil {
+		if user, ok := bundle.users[*message.UserID]; ok {
+			out["username"] = user.Username
+			out["avatar"] = user.Avatar
 		}
 	}
-	if v, ok := b.voices[m.ID]; ok {
-		o["voice_message"] = s.VoiceJSON(v)
+	if voice, ok := bundle.voices[message.ID]; ok {
+		out["voice_message"] = handler.VoiceJSON(voice)
 	}
-	return o
+	return out
 }
 
-func (s *Handler) MessageJSON(m models.Message) map[string]any {
-	return s.messageJSONWith(m, s.loadMessageBundle([]models.Message{m}))
+func (handler *Handler) MessageJSON(message models.Message) map[string]any {
+	return handler.messageJSONWith(message, handler.loadMessageBundle([]models.Message{message}))
 }
 
-func (s *Handler) messagesJSON(msgs []models.Message) []any {
-	b := s.loadMessageBundle(msgs)
+func (handler *Handler) messagesJSON(msgs []models.Message) []any {
+	bundle := handler.loadMessageBundle(msgs)
 	out := make([]any, 0, len(msgs))
-	for _, m := range msgs {
-		out = append(out, s.messageJSONWith(m, b))
+	for _, message := range msgs {
+		out = append(out, handler.messageJSONWith(message, bundle))
 	}
 	return out
 }
@@ -207,81 +207,81 @@ func (s *Handler) messagesJSON(msgs []models.Message) []any {
 // chatPreload carries everything ChatJSON needs for one conversation so the
 // chat list can fetch shared data for all conversations up front.
 type chatPreload struct {
-	participants []models.User
-	unread       int64
-	last         *models.Message
-	detail       []models.Message
-	bundle       *messageBundle
+	participants	[]models.User
+	unread		int64
+	last		*models.Message
+	detail		[]models.Message
+	bundle		*messageBundle
 }
 
-func (s *Handler) loadChatPreload(chats []models.Chat, viewer int64, detail bool) map[int64]*chatPreload {
+func (handler *Handler) loadChatPreload(chats []models.Chat, viewer int64, detail bool) map[int64]*chatPreload {
 	out := make(map[int64]*chatPreload, len(chats))
-	for _, c := range chats {
-		out[c.ID] = &chatPreload{}
+	for _, comment := range chats {
+		out[comment.ID] = &chatPreload{}
 	}
 	if len(chats) == 0 {
 		return out
 	}
 	ids := make([]int64, 0, len(chats))
-	for _, c := range chats {
-		ids = append(ids, c.ID)
+	for _, comment := range chats {
+		ids = append(ids, comment.ID)
 	}
-	parts := All[models.ChatParticipant](s.DB.Where("chat_id IN ?", ids))
+	parts := All[models.ChatParticipant](handler.DB.Where("chat_id IN ?", ids))
 	participantsByChat := map[int64][]int64{}
 	userIDs := []int64{}
 	seenUsers := map[int64]bool{}
-	for _, p := range parts {
-		participantsByChat[p.ChatID] = append(participantsByChat[p.ChatID], p.UserID)
-		if !seenUsers[p.UserID] {
-			seenUsers[p.UserID] = true
-			userIDs = append(userIDs, p.UserID)
+	for _, post := range parts {
+		participantsByChat[post.ChatID] = append(participantsByChat[post.ChatID], post.UserID)
+		if !seenUsers[post.UserID] {
+			seenUsers[post.UserID] = true
+			userIDs = append(userIDs, post.UserID)
 		}
 	}
 	usersByID := map[int64]models.User{}
 	if len(userIDs) > 0 {
-		for _, u := range All[models.User](s.DB.Where("id IN ?", userIDs)) {
-			usersByID[u.ID] = u
+		for _, user := range All[models.User](handler.DB.Where("id IN ?", userIDs)) {
+			usersByID[user.ID] = user
 		}
 	}
 	type unreadRow struct {
-		ChatID int64
-		N      int64
+		ChatID	int64
+		N	int64
 	}
 	var unreadRows []unreadRow
-	Check(s.DB.Model(&models.Message{}).Select("chat_id, COUNT(*) AS n").
+	Check(handler.DB.Model(&models.Message{}).Select("chat_id, COUNT(*) AS n").
 		Where("chat_id IN (?) AND (user_id <> ? OR user_id IS NULL) AND is_read = ?", ids, viewer, false).
 		Group("chat_id").Scan(&unreadRows).Error)
 	var lasts []models.Message
-	Check(s.DB.Where("id IN (?)",
-		s.DB.Model(&models.Message{}).Select("MAX(id)").Where("chat_id IN (?)", ids).Group("chat_id"),
+	Check(handler.DB.Where("id IN (?)",
+		handler.DB.Model(&models.Message{}).Select("MAX(id)").Where("chat_id IN (?)", ids).Group("chat_id"),
 	).Find(&lasts).Error)
 	lastByChat := map[int64]*models.Message{}
 	bundleMsgs := make([]models.Message, 0, len(lasts))
-	for i := range lasts {
-		m := lasts[i]
-		if m.ChatID != nil {
-			lastByChat[*m.ChatID] = &lasts[i]
-			bundleMsgs = append(bundleMsgs, m)
+	for index := range lasts {
+		message := lasts[index]
+		if message.ChatID != nil {
+			lastByChat[*message.ChatID] = &lasts[index]
+			bundleMsgs = append(bundleMsgs, message)
 		}
 	}
 	detailByChat := map[int64][]models.Message{}
 	if detail {
-		for _, c := range chats {
-			msgs := All[models.Message](s.DB.Where("chat_id = ?", c.ID).Order("id DESC").Limit(200))
-			detailByChat[c.ID] = msgs
+		for _, comment := range chats {
+			msgs := All[models.Message](handler.DB.Where("chat_id = ?", comment.ID).Order("id DESC").Limit(200))
+			detailByChat[comment.ID] = msgs
 			bundleMsgs = append(bundleMsgs, msgs...)
 		}
 	}
-	bundle := s.loadMessageBundle(bundleMsgs)
-	for _, c := range chats {
-		pre := out[c.ID]
-		for _, id := range participantsByChat[c.ID] {
-			if u, ok := usersByID[id]; ok {
-				pre.participants = append(pre.participants, u)
+	bundle := handler.loadMessageBundle(bundleMsgs)
+	for _, comment := range chats {
+		pre := out[comment.ID]
+		for _, id := range participantsByChat[comment.ID] {
+			if user, ok := usersByID[id]; ok {
+				pre.participants = append(pre.participants, user)
 			}
 		}
-		pre.last = lastByChat[c.ID]
-		pre.detail = detailByChat[c.ID]
+		pre.last = lastByChat[comment.ID]
+		pre.detail = detailByChat[comment.ID]
 		pre.bundle = bundle
 	}
 	for _, row := range unreadRows {
@@ -292,48 +292,48 @@ func (s *Handler) loadChatPreload(chats []models.Chat, viewer int64, detail bool
 	return out
 }
 
-func (s *Handler) ChatJSON(c models.Chat, user int64, detail bool) map[string]any {
-	return s.chatJSONWith(c, user, detail, s.loadChatPreload([]models.Chat{c}, user, detail)[c.ID])
+func (handler *Handler) ChatJSON(chat models.Chat, user int64, detail bool) map[string]any {
+	return handler.chatJSONWith(chat, user, detail, handler.loadChatPreload([]models.Chat{chat}, user, detail)[chat.ID])
 }
 
-func (s *Handler) chatJSONWith(c models.Chat, user int64, detail bool, pre *chatPreload) map[string]any {
-	o := Object(c)
+func (handler *Handler) chatJSONWith(chat models.Chat, user int64, detail bool, pre *chatPreload) map[string]any {
+	out := Object(chat)
 	participants := []any{}
-	o["other_participant"] = nil
-	for _, u := range pre.participants {
-		p := map[string]any{"id": u.ID, "username": u.Username, "avatar": u.Avatar}
-		participants = append(participants, p)
-		if u.ID != user {
-			o["other_participant"] = p
-			if c.ChatType == "direct" {
-				if at := lastSeen(u); !at.IsZero() {
-					p["last_seen_at"] = at
+	out["other_participant"] = nil
+	for _, member := range pre.participants {
+		participant := map[string]any{"id": member.ID, "username": member.Username, "avatar": member.Avatar}
+		participants = append(participants, participant)
+		if member.ID != user {
+			out["other_participant"] = participant
+			if chat.ChatType == "direct" {
+				if at := lastSeen(member); !at.IsZero() {
+					participant["last_seen_at"] = at
 				}
-				o["username"] = u.Username
-				o["avatar"] = u.Avatar
+				out["username"] = member.Username
+				out["avatar"] = member.Avatar
 				if detail {
-					o["target_user"] = u.Username
+					out["target_user"] = member.Username
 				}
 			}
 		}
 	}
-	o["participants"] = participants
-	o["participant_count"] = len(participants)
-	o["unread_count"] = pre.unread
+	out["participants"] = participants
+	out["participant_count"] = len(participants)
+	out["unread_count"] = pre.unread
 	if pre.last != nil {
-		message := s.messageJSONWith(*pre.last, pre.bundle)
+		message := handler.messageJSONWith(*pre.last, pre.bundle)
 		message["user"] = message["username"]
-		o["last_message"] = message
+		out["last_message"] = message
 	}
 	if detail {
 		messages := []any{}
-		for _, m := range pre.detail {
-			messages = append(messages, s.messageJSONWith(m, pre.bundle))
+		for _, message := range pre.detail {
+			messages = append(messages, handler.messageJSONWith(message, pre.bundle))
 		}
-		for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
-			messages[i], messages[j] = messages[j], messages[i]
+		for left, right := 0, len(messages)-1; left < right; left, right = left+1, right-1 {
+			messages[left], messages[right] = messages[right], messages[left]
 		}
-		o["messages"] = messages
+		out["messages"] = messages
 	}
-	return o
+	return out
 }

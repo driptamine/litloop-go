@@ -12,36 +12,36 @@ import (
 	"testing"
 )
 
-func Open(t *testing.T, c *config.Config) *gorm.DB {
-	t.Helper()
+func Open(tester *testing.T, appConfig *config.Config) *gorm.DB {
+	tester.Helper()
 	var admin *gorm.DB
 	schema := ""
 	if raw := os.Getenv("TEST_DATABASE_URL"); raw != "" {
-		var e error
-		admin, e = database.Open(config.Config{DatabaseURL: raw})
-		if e != nil {
-			t.Fatal(e)
+		var err error
+		admin, err = database.Open(config.Config{DatabaseURL: raw})
+		if err != nil {
+			tester.Fatal(err)
 		}
-		b := make([]byte, 8)
-		_, _ = rand.Read(b)
-		schema = "test_" + hex.EncodeToString(b)
-		if e = admin.Exec(`CREATE SCHEMA "` + schema + `"`).Error; e != nil {
-			t.Fatal(e)
+		randomBytes := make([]byte, 8)
+		_, _ = rand.Read(randomBytes)
+		schema = "test_" + hex.EncodeToString(randomBytes)
+		if err = admin.Exec(`CREATE SCHEMA "` + schema + `"`).Error; err != nil {
+			tester.Fatal(err)
 		}
-		uri, e := url.Parse(raw)
-		if e != nil {
-			t.Fatal(e)
+		uri, err := url.Parse(raw)
+		if err != nil {
+			tester.Fatal(err)
 		}
 		query := uri.Query()
 		query.Set("search_path", schema)
 		uri.RawQuery = query.Encode()
-		c.DatabaseURL = uri.String()
+		appConfig.DatabaseURL = uri.String()
 	}
-	db, e := database.Open(*c)
-	if e != nil {
-		t.Fatal(e)
+	db, err := database.Open(*appConfig)
+	if err != nil {
+		tester.Fatal(err)
 	}
-	t.Cleanup(func() {
+	tester.Cleanup(func() {
 		pool, _ := db.DB()
 		_ = pool.Close()
 		if admin != nil {
@@ -50,8 +50,8 @@ func Open(t *testing.T, c *config.Config) *gorm.DB {
 			_ = pool.Close()
 		}
 	})
-	if e = database.Migrate(db); e != nil {
-		t.Fatal(e)
+	if err = database.Migrate(db); err != nil {
+		tester.Fatal(err)
 	}
 	return db
 }

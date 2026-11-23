@@ -10,66 +10,66 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func (s *Handler) FindTrack(key string) models.Track {
-	var t models.Track
-	if n, e := strconv.ParseInt(key, 10, 64); e == nil {
-		Check(s.DB.First(&t, n).Error)
+func (handler *Handler) FindTrack(key string) models.Track {
+	var track models.Track
+	if parsed, err := strconv.ParseInt(key, 10, 64); err == nil {
+		Check(handler.DB.First(&track, parsed).Error)
 	} else {
-		Check(s.DB.First(&t, "track_uri = ?", key).Error)
+		Check(handler.DB.First(&track, "track_uri = ?", key).Error)
 	}
-	return t
+	return track
 }
-func (s *Handler) TrackWrite(q *Request) any {
-	t := s.FindTrack(q.Param("key"))
-	if !q.User.IsStaff {
-		Owned(Val(t.UserID), q.User.ID)
+func (handler *Handler) TrackWrite(req *Request) any {
+	track := handler.FindTrack(req.Param("key"))
+	if !req.User.IsStaff {
+		Owned(Val(track.UserID), req.User.ID)
 	}
-	if q.R.Method == "DELETE" {
-		q.Tx(func(tx *gorm.DB) error { return DeleteRecord(tx, "tracks_track", t.ID) })
-		q.Status = 204
+	if req.R.Method == "DELETE" {
+		req.Tx(func(tx *gorm.DB) error { return DeleteRecord(tx, "tracks_track", track.ID) })
+		req.Status = 204
 		return nil
 	}
-	b := q.Body()
-	for _, p := range []struct {
-		Key   string
-		Value *string
-	}{{"name", &t.Name}, {"track_number", &t.TrackNumber}, {"status", &t.Status}} {
-		if v, ok := b[p.Key]; ok {
-			*p.Value = Str(v)
+	body := req.Body()
+	for _, field := range []struct {
+		Key	string
+		Value	*string
+	}{{"name", &track.Name}, {"track_number", &track.TrackNumber}, {"status", &track.Status}} {
+		if value, ok := body[field.Key]; ok {
+			*field.Value = Str(value)
 		}
 	}
-	if t.Status != "draft" && t.Status != "attached" {
+	if track.Status != "draft" && track.Status != "attached" {
 		Fail(400, "Invalid status")
 	}
-	if v, ok := b["release_date"]; ok {
-		t.ReleaseDate = nil
-		if v != nil && Str(v) != "" {
-			t.ReleaseDate = ParseDate(Str(v))
-			if t.ReleaseDate == nil {
+	if value, ok := body["release_date"]; ok {
+		track.ReleaseDate = nil
+		if value != nil && Str(value) != "" {
+			track.ReleaseDate = ParseDate(Str(value))
+			if track.ReleaseDate == nil {
 				Fail(400, "Invalid release_date")
 			}
 		}
 	}
-	q.Tx(func(tx *gorm.DB) error {
-		if uri, ok := b["album_uri"]; ok {
+	req.Tx(func(tx *gorm.DB) error {
+		if uri, ok := body["album_uri"]; ok {
 			if uri == nil || Str(uri) == "" {
-				t.AlbumID = nil
+				track.AlbumID = nil
 			} else {
-				var a models.Album
-				Check(tx.First(&a, "album_uri = ?", Str(uri)).Error)
-				t.AlbumID = Ptr(a.ID)
+				var album models.Album
+				Check(tx.First(&album, "album_uri = ?", Str(uri)).Error)
+				track.AlbumID = Ptr(album.ID)
 			}
 		}
-		names, hasNames := b["artist_names"]
+		names, hasNames := body["artist_names"]
 		if !hasNames {
-			names, hasNames = b["artists"]
+			names, hasNames = body["artists"]
 		}
-		_, hasURIs := b["artist_uris"]
+		_, hasURIs := body["artist_uris"]
 		if hasNames || hasURIs {
-			Check(tx.Where("track_id = ?", t.ID).Delete(&models.TrackArtist{}).Error)
+			Check(tx.Where("track_id = ?", track.ID).Delete(&models.TrackArtist{}).Error)
 			artists := []models.Artist{}
 			if hasURIs {
-				uris, ok := b["artist_uris"].([]any)
+				uris, ok := body["artist_uris"].([]any)
 				if !ok {
 					Fail(400, "artist_uris must be an array")
 				}
@@ -101,16 +101,16 @@ func (s *Handler) TrackWrite(q *Request) any {
 					if name == "" {
 						continue
 					}
-					a := models.Artist{Name: name, ArtistURI: "local-" + strings.Trim(SlugRE.ReplaceAllString(strings.ToLower(name), "-"), "-")}
-					Check(tx.Where("name = ?", name).FirstOrCreate(&a).Error)
-					artists = append(artists, a)
+					artist := models.Artist{Name: name, ArtistURI: "local-" + strings.Trim(SlugRE.ReplaceAllString(strings.ToLower(name), "-"), "-")}
+					Check(tx.Where("name = ?", name).FirstOrCreate(&artist).Error)
+					artists = append(artists, artist)
 				}
 			}
 			for _, artist := range artists {
-				Check(tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&models.TrackArtist{TrackID: t.ID, ArtistID: artist.ID}).Error)
+				Check(tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&models.TrackArtist{TrackID: track.ID, ArtistID: artist.ID}).Error)
 			}
 		}
-		return tx.Save(&t).Error
+		return tx.Save(&track).Error
 	})
-	return s.TrackJSON(t)
+	return handler.TrackJSON(track)
 }

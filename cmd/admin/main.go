@@ -24,9 +24,9 @@ func main() {
 	password := os.Getenv("ADMIN_PASSWORD")
 	if password == "" {
 		fmt.Fprint(os.Stderr, "Password: ")
-		raw, e := term.ReadPassword(int(os.Stdin.Fd()))
-		if e != nil {
-			log.Fatal("Set ADMIN_PASSWORD or use a terminal: ", e)
+		raw, err := term.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			log.Fatal("Set ADMIN_PASSWORD or use a terminal: ", err)
 		}
 		fmt.Fprintln(os.Stderr)
 		password = string(raw)
@@ -34,17 +34,17 @@ func main() {
 	if len(password) < 8 || len(password) > 72 {
 		log.Fatal("Password must contain 8–72 bytes")
 	}
-	hash, e := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if e != nil {
-		log.Fatal(e)
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Fatal(err)
 	}
-	db, e := database.Open(config.Load())
-	if e != nil {
-		log.Fatal(e)
+	db, err := database.Open(config.Load())
+	if err != nil {
+		log.Fatal(err)
 	}
-	u := models.User{Email: strings.ToLower(*email), Username: *username, Password: string(hash), IsActive: true, IsStaff: true, IsSuperuser: true}
-	if e = db.Create(&u).Error; e != nil {
-		log.Fatal(e)
+	user := models.User{Email: strings.ToLower(*email), Username: *username, Password: string(hash), IsActive: true, IsStaff: true, IsSuperuser: true}
+	if err = db.Create(&user).Error; err != nil {
+		log.Fatal(err)
 	}
-	fmt.Printf("Created administrator %d\n", u.ID)
+	fmt.Printf("Created administrator %d\n", user.ID)
 }

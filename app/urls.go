@@ -4,14 +4,14 @@ import (
 	. "litloop/backend/internal/httpapi"
 )
 
-func Register(s *Server) {
-	s.Route("GET", "/openapi.json", false, func(q *Request) any { return s.OpenAPI() })
-	s.Route("GET", "/healthz", false, func(q *Request) any { return map[string]any{"status": "ok"} })
-	s.Route("GET", "/readyz", false, func(q *Request) any {
-		db, e := s.DB.DB()
-		Check(e)
+func Register(server *Server) {
+	server.Route("GET", "/openapi.json", false, func(req *Request) any { return server.OpenAPI() })
+	server.Route("GET", "/healthz", false, func(req *Request) any { return map[string]any{"status": "ok"} })
+	server.Route("GET", "/readyz", false, func(req *Request) any {
+		db, err := server.DB.DB()
+		Check(err)
 		Check(db.PingContext(
-			q.R.Context()))
+			req.R.Context()))
 
 		return map[string]any{"status": "ok"}
 	})

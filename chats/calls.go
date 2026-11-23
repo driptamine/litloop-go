@@ -16,49 +16,49 @@ const ringDuration = 45 * time.Second
 
 func incomingCallEvent(call models.Call, caller string) map[string]any {
 	return map[string]any{
-		"type": "incoming_call", "chat_id": call.ChatID, "call_id": call.ID,
-		"caller_id": call.CallerID, "caller_name": caller,
-		"call_type": call.CallType, "expires_at": call.StartedAt.Add(ringDuration),
+		"type":	"incoming_call", "chat_id": call.ChatID, "call_id": call.ID,
+		"caller_id":	call.CallerID, "caller_name": caller,
+		"call_type":	call.CallType, "expires_at": call.StartedAt.Add(ringDuration),
 	}
 }
 
-func (s *Handler) IncomingCall(q *Request) any {
-	chats := s.DB.Model(&models.ChatParticipant{}).Select("chat_id").Where("user_id = ?", q.User.ID)
+func (handler *Handler) IncomingCall(req *Request) any {
+	chats := handler.DB.Model(&models.ChatParticipant{}).Select("chat_id").Where("user_id = ?", req.User.ID)
 	var call models.Call
-	err := s.DB.Where("chat_id IN (?) AND caller_id <> ? AND status = ? AND started_at > ?",
-		chats, q.User.ID, "initiated", time.Now().Add(-ringDuration)).
+	err := handler.DB.Where("chat_id IN (?) AND caller_id <> ? AND status = ? AND started_at > ?",
+		chats, req.User.ID, "initiated", time.Now().Add(-ringDuration)).
 		Order("id DESC").First(&call).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return map[string]any{"incoming_call": nil}
 	}
 	Check(err)
-	caller := Get[models.User](s.DB, call.CallerID)
+	caller := Get[models.User](handler.DB, call.CallerID)
 	return map[string]any{"incoming_call": incomingCallEvent(call, caller.Username)}
 }
 
-func (s *Handler) CallCommand(q *Request) any {
-	chat := s.ChatAccess(q, q.ID("id"))
+func (handler *Handler) CallCommand(req *Request) any {
+	chat := handler.ChatAccess(req, req.ID("id"))
 	if chat.IsSavedMessages {
 		Fail(400, "This conversation does not support calls")
 	}
-	b := q.Body()
-	if Str(b["type"]) != "voip_call_start" && b["call_id"] == nil {
+	body := req.Body()
+	if Str(body["type"]) != "voip_call_start" && body["call_id"] == nil {
 		Fail(400, "Call ID is required")
 	}
-	if !s.VoIP(q, b) {
+	if !handler.VoIP(req, body) {
 		Fail(409, "Call is no longer available")
 	}
-	s.broadcastCall(q, b)
-	return map[string]any{"call_id": b["call_id"], "expires_at": b["expires_at"]}
+	handler.broadcastCall(req, body)
+	return map[string]any{"call_id": body["call_id"], "expires_at": body["expires_at"]}
 }
 
-func (s *Handler) CallState(q *Request) any {
-	q.W.Header().Set("Cache-Control", "no-store")
-	chat := s.ChatAccess(q, q.ID("id"))
-	id := Num(q.R.URL.Query().Get("call_id"))
+func (handler *Handler) CallState(req *Request) any {
+	req.W.Header().Set("Cache-Control", "no-store")
+	chat := handler.ChatAccess(req, req.ID("id"))
+	id := Num(req.R.URL.Query().Get("call_id"))
 	var call models.Call
-	err := s.DB.Where("id = ? AND chat_id = ? AND (caller_id = ? OR receiver_id = ?)",
-		id, chat.ID, q.User.ID, q.User.ID).First(&call).Error
+	err := handler.DB.Where("id = ? AND chat_id = ? AND (caller_id = ? OR receiver_id = ?)",
+		id, chat.ID, req.User.ID, req.User.ID).First(&call).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		Fail(404, "Call is no longer available")
 	}
@@ -68,34 +68,34 @@ func (s *Handler) CallState(q *Request) any {
 		status = "expired"
 	}
 	result := map[string]any{"call_id": call.ID, "chat_id": call.ChatID, "status": status}
-	if status == "ongoing" && q.R.URL.Query().Get("signals") == "1" {
-		signals, err := s.Hub.CallSignals(call.ID, q.User.ID)
+	if status == "ongoing" && req.R.URL.Query().Get("signals") == "1" {
+		signals, err := handler.Hub.CallSignals(call.ID, req.User.ID)
 		Check(err)
 		result["signals"] = signals
 	}
 	return result
 }
 
-func (s *Handler) broadcastCall(q *Request, b map[string]any) {
-	b["from_user_id"] = q.User.ID
-	b["chat_id"] = q.ID("id")
-	b["username"] = q.User.Username
-	s.Hub.Broadcast(fmt.Sprint(q.ID("id")), b)
+func (handler *Handler) broadcastCall(req *Request, body map[string]any) {
+	body["from_user_id"] = req.User.ID
+	body["chat_id"] = req.ID("id")
+	body["username"] = req.User.Username
+	handler.Hub.Broadcast(fmt.Sprint(req.ID("id")), body)
 }
 
-func (s *Handler) notifyCallMembers(call models.Call, except int64, event map[string]any) {
-	for _, participant := range All[models.ChatParticipant](s.DB.Where("chat_id = ? AND user_id <> ?", call.ChatID, except)) {
-		s.Hub.Broadcast(fmt.Sprint("user:", participant.UserID), event)
+func (handler *Handler) notifyCallMembers(call models.Call, except int64, event map[string]any) {
+	for _, participant := range All[models.ChatParticipant](handler.DB.Where("chat_id = ? AND user_id <> ?", call.ChatID, except)) {
+		handler.Hub.Broadcast(fmt.Sprint("user:", participant.UserID), event)
 	}
 }
 
-func (s *Handler) startCall(q *Request, b map[string]any) {
-	id := q.ID("id")
-	call := models.Call{ChatID: id, CallerID: q.User.ID, CallType: "voice", Status: "initiated"}
-	if Str(b["call_type"]) == "video" {
+func (handler *Handler) startCall(req *Request, body map[string]any) {
+	id := req.ID("id")
+	call := models.Call{ChatID: id, CallerID: req.User.ID, CallType: "voice", Status: "initiated"}
+	if Str(body["call_type"]) == "video" {
 		call.CallType = "video"
 	}
-	q.Tx(func(tx *gorm.DB) error {
+	req.Tx(func(tx *gorm.DB) error {
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select("id").First(&models.Chat{}, id).Error; err != nil {
 			return err
 		}
@@ -107,26 +107,26 @@ func (s *Handler) startCall(q *Request, b map[string]any) {
 		}
 		return tx.Create(&call).Error
 	})
-	event := incomingCallEvent(call, q.User.Username)
-	b["call_id"] = call.ID
-	b["expires_at"] = event["expires_at"]
-	s.notifyCallMembers(call, q.User.ID, event)
+	event := incomingCallEvent(call, req.User.Username)
+	body["call_id"] = call.ID
+	body["expires_at"] = event["expires_at"]
+	handler.notifyCallMembers(call, req.User.ID, event)
 }
 
-func (s *Handler) VoIP(q *Request, b map[string]any) bool {
-	typ := Str(b["type"])
+func (handler *Handler) VoIP(req *Request, body map[string]any) bool {
+	typ := Str(body["type"])
 	switch typ {
 	case "voip_call_start":
-		s.startCall(q, b)
+		handler.startCall(req, body)
 		return true
 	case "voip_call_accept", "voip_call_reject", "voip_call_end", "voip_webrtc_signal":
 	default:
 		return false
 	}
 
-	calls := s.DB.Where("chat_id = ? AND status IN ? AND call_type <> ?", q.ID("id"), []string{"initiated", "ongoing"}, groupVoiceType)
-	if b["call_id"] != nil {
-		calls = calls.Where("id = ?", Num(b["call_id"]))
+	calls := handler.DB.Where("chat_id = ? AND status IN ? AND call_type <> ?", req.ID("id"), []string{"initiated", "ongoing"}, groupVoiceType)
+	if body["call_id"] != nil {
+		calls = calls.Where("id = ?", Num(body["call_id"]))
 	}
 	var call models.Call
 	err := calls.Order("id DESC").First(&call).Error
@@ -135,8 +135,8 @@ func (s *Handler) VoIP(q *Request, b map[string]any) bool {
 	}
 	Check(err)
 
-	actor := q.User.ID
-	b["call_id"] = call.ID
+	actor := req.User.ID
+	body["call_id"] = call.ID
 	if typ == "voip_webrtc_signal" {
 		if call.Status != "ongoing" || call.ReceiverID == nil {
 			return false
@@ -147,7 +147,7 @@ func (s *Handler) VoIP(q *Request, b map[string]any) bool {
 		} else if actor != *call.ReceiverID {
 			return false
 		}
-		signal, ok := b["signal_data"].(map[string]any)
+		signal, ok := body["signal_data"].(map[string]any)
 		if !ok {
 			return false
 		}
@@ -157,13 +157,13 @@ func (s *Handler) VoIP(q *Request, b map[string]any) bool {
 			return false
 		}
 		signalID := rand.Text()
-		b["signal_id"] = signalID
+		body["signal_id"] = signalID
 		event := map[string]any{
-			"type": typ, "chat_id": call.ChatID, "call_id": call.ID,
-			"from_user_id": actor, "signal_id": signalID, "signal_data": signal,
+			"type":	typ, "chat_id": call.ChatID, "call_id": call.ID,
+			"from_user_id":	actor, "signal_id": signalID, "signal_data": signal,
 		}
-		Check(s.Hub.SaveCallSignal(call.ID, target, event))
-		s.Hub.Broadcast(fmt.Sprint("user:", target), event)
+		Check(handler.Hub.SaveCallSignal(call.ID, target, event))
+		handler.Hub.Broadcast(fmt.Sprint("user:", target), event)
 		return true
 	}
 
@@ -191,7 +191,7 @@ func (s *Handler) VoIP(q *Request, b map[string]any) bool {
 		updates["status"] = "completed"
 		updates["ended_at"] = now
 	}
-	result := s.DB.Model(&models.Call{}).Where("id = ? AND status = ?", call.ID, call.Status).Updates(updates)
+	result := handler.DB.Model(&models.Call{}).Where("id = ? AND status = ?", call.ID, call.Status).Updates(updates)
 	Check(result.Error)
 	if result.RowsAffected != 1 {
 		return false
@@ -200,10 +200,10 @@ func (s *Handler) VoIP(q *Request, b map[string]any) bool {
 	event := map[string]any{"chat_id": call.ChatID, "call_id": call.ID, "from_user_id": actor}
 	if typ == "voip_call_accept" {
 		event["type"] = "call_accepted"
-		s.Hub.Broadcast(fmt.Sprint("user:", call.CallerID), event)
+		handler.Hub.Broadcast(fmt.Sprint("user:", call.CallerID), event)
 	} else {
 		event["type"] = "call_closed"
-		s.notifyCallMembers(call, actor, event)
+		handler.notifyCallMembers(call, actor, event)
 	}
 	return true
 }

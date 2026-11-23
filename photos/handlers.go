@@ -9,58 +9,58 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func (s *Handler) PhotoAlbum(q *Request) any {
-	if q.R.Method == "GET" {
-		var a models.PhotoAlbum
-		Check(s.DB.First(&a, "friendly_token = ?", q.Param("key")).Error)
-		o := Object(a)
+func (handler *Handler) PhotoAlbum(req *Request) any {
+	if req.R.Method == "GET" {
+		var albumData models.PhotoAlbum
+		Check(handler.DB.First(&albumData, "friendly_token = ?", req.Param("key")).Error)
+		out := Object(albumData)
 		photos := []any{}
-		for _, item := range All[models.PhotoAlbumItem](s.DB.Where("photo_album_id = ?", a.ID).Order("ordering")) {
-			p := Get[models.Photo](s.DB, item.PhotoID)
-			photos = append(photos, s.MediaJSON(p))
+		for _, item := range All[models.PhotoAlbumItem](handler.DB.Where("photo_album_id = ?", albumData.ID).Order("ordering")) {
+			photo := Get[models.Photo](handler.DB, item.PhotoID)
+			photos = append(photos, handler.MediaJSON(photo))
 		}
-		o["photos"] = photos
-		o["photo_count"] = len(photos)
-		album := Object(a)
+		out["photos"] = photos
+		out["photo_count"] = len(photos)
+		album := Object(albumData)
 		album["photo_count"] = len(photos)
-		o["album"] = album
-		return o
+		out["album"] = album
+		return out
 	}
-	if q.Param("id") == "" {
-		b := q.Body()
-		a := models.PhotoAlbum{UserID: q.User.ID, Title: Truncate(Clean(Str(b["title"])), 99), Description: Clean(Str(b["description"])), FriendlyToken: Token()[:12]}
-		if a.Title == "" {
+	if req.Param("id") == "" {
+		body := req.Body()
+		album := models.PhotoAlbum{UserID: req.User.ID, Title: Truncate(Clean(Str(body["title"])), 99), Description: Clean(Str(body["description"])), FriendlyToken: Token()[:12]}
+		if album.Title == "" {
 			Fail(400, "title is required")
 		}
-		Check(s.DB.Create(&a).Error)
-		q.Status = 201
-		out := Object(a)
+		Check(handler.DB.Create(&album).Error)
+		req.Status = 201
+		out := Object(album)
 		out["photo_count"] = 0
 		return out
 	}
-	a := Get[models.PhotoAlbum](s.DB.Where("user_id = ?", q.User.ID), q.ID("id"))
-	var p models.Photo
-	if strings.HasSuffix(q.R.URL.Path, "/upload") {
-		file := s.MultipartUpload(q)
-		p = models.Photo{UserID: Ptr(q.User.ID), Filename: file.Name, Status: "attached", FriendlyToken: Token()[:12]}
-		p.R2Key, p.GCSKey, p.S3Key = file.Keys()
-		Check(s.DB.Create(&p).Error)
+	album := Get[models.PhotoAlbum](handler.DB.Where("user_id = ?", req.User.ID), req.ID("id"))
+	var photo models.Photo
+	if strings.HasSuffix(req.R.URL.Path, "/upload") {
+		file := handler.MultipartUpload(req)
+		photo = models.Photo{UserID: Ptr(req.User.ID), Filename: file.Name, Status: "attached", FriendlyToken: Token()[:12]}
+		photo.R2Key, photo.GCSKey, photo.S3Key = file.Keys()
+		Check(handler.DB.Create(&photo).Error)
 	} else {
-		p = Get[models.Photo](s.DB.Where("user_id = ?", q.User.ID), Num(q.Body()["photo_id"]))
+		photo = Get[models.Photo](handler.DB.Where("user_id = ?", req.User.ID), Num(req.Body()["photo_id"]))
 	}
 	var item models.PhotoAlbumItem
-	q.Tx(func(tx *gorm.DB) error {
-		Check(tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&a, a.ID).Error)
+	req.Tx(func(tx *gorm.DB) error {
+		Check(tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&album, album.ID).Error)
 		var exists int64
-		Check(tx.Model(&models.PhotoAlbumItem{}).Where("photo_album_id = ? AND photo_id = ?", a.ID, p.ID).Count(&exists).Error)
+		Check(tx.Model(&models.PhotoAlbumItem{}).Where("photo_album_id = ? AND photo_id = ?", album.ID, photo.ID).Count(&exists).Error)
 		if exists > 0 {
 			Fail(409, "Photo already in album")
 		}
 		var order int64
-		Check(tx.Model(&models.PhotoAlbumItem{}).Where("photo_album_id = ?", a.ID).Select("COALESCE(MAX(ordering),0)").Scan(&order).Error)
-		item = models.PhotoAlbumItem{PhotoID: p.ID, PhotoAlbumID: a.ID, Ordering: order + 1}
+		Check(tx.Model(&models.PhotoAlbumItem{}).Where("photo_album_id = ?", album.ID).Select("COALESCE(MAX(ordering),0)").Scan(&order).Error)
+		item = models.PhotoAlbumItem{PhotoID: photo.ID, PhotoAlbumID: album.ID, Ordering: order + 1}
 		return tx.Create(&item).Error
 	})
-	q.Status = 201
-	return map[string]any{"success": true, "item_id": item.ID, "photo_id": p.ID, "album_id": a.ID, "ordering": item.Ordering, "location": s.MediaURL(p.R2Key, p.GCSKey, p.S3Key)}
+	req.Status = 201
+	return map[string]any{"success": true, "item_id": item.ID, "photo_id": photo.ID, "album_id": album.ID, "ordering": item.Ordering, "location": handler.MediaURL(photo.R2Key, photo.GCSKey, photo.S3Key)}
 }

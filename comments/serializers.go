@@ -5,21 +5,21 @@ import (
 	"litloop/backend/internal/models"
 )
 
-func (s *Handler) CommentJSON(c models.Comment) map[string]any {
-	o := Object(c)
-	u := Get[models.User](s.DB, c.UserID)
-	o["username"] = u.Username
-	o["avatar"] = u.Avatar
-	o["created_at"] = c.AddDate
-	o["author_name"] = u.Username
-	o["author_thumbnail_url"] = u.Avatar
-	o["author_profile"] = "/users/" + u.Username + "/"
-	o["parent"] = nil
-	if c.ParentID != nil {
+func (handler *Handler) CommentJSON(comment models.Comment) map[string]any {
+	out := Object(comment)
+	user := Get[models.User](handler.DB, comment.UserID)
+	out["username"] = user.Username
+	out["avatar"] = user.Avatar
+	out["created_at"] = comment.AddDate
+	out["author_name"] = user.Username
+	out["author_thumbnail_url"] = user.Avatar
+	out["author_profile"] = "/users/" + user.Username + "/"
+	out["parent"] = nil
+	if comment.ParentID != nil {
 		var parent models.Comment
-		if s.DB.First(&parent, *c.ParentID).Error == nil {
-			o["parent"] = parent.UID
+		if handler.DB.First(&parent, *comment.ParentID).Error == nil {
+			out["parent"] = parent.UID
 		}
 	}
-	return o
+	return out
 }

@@ -12,26 +12,26 @@ import (
 	"time"
 )
 
-func Signature(c config.Config, key, expires string) string {
-	m := hmac.New(sha256.New, []byte(c.JWTSecret))
-	_, _ = m.Write([]byte(key + "\n" + expires))
-	return hex.EncodeToString(m.Sum(nil))
+func Signature(appConfig config.Config, key, expires string) string {
+	mac := hmac.New(sha256.New, []byte(appConfig.JWTSecret))
+	_, _ = mac.Write([]byte(key + "\n" + expires))
+	return hex.EncodeToString(mac.Sum(nil))
 }
-func LocalURL(c config.Config, key string) string {
+func LocalURL(appConfig config.Config, key string) string {
 	exp := strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10)
 	path := (&url.URL{Path: "/media/" + key}).EscapedPath()
-	return strings.TrimRight(c.PublicURL, "/") + path + "?expires=" + exp + "&signature=" + Signature(c, key, exp)
+	return strings.TrimRight(appConfig.PublicURL, "/") + path + "?expires=" + exp + "&signature=" + Signature(appConfig, key, exp)
 }
 
 func ChatAttachmentPrefix(userID int64) string {
 	return "chat-attachments/" + strconv.FormatInt(userID, 10) + "/"
 }
-func NativeURL(c config.Config, key string) string {
+func NativeURL(appConfig config.Config, key string) string {
 	exp := strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10)
 	path := (&url.URL{Path: "/gcs-media/" + key}).EscapedPath()
-	return strings.TrimRight(c.PublicURL, "/") + path + "?expires=" + exp + "&signature=" + Signature(c, "gcs/"+key, exp)
+	return strings.TrimRight(appConfig.PublicURL, "/") + path + "?expires=" + exp + "&signature=" + Signature(appConfig, "gcs/"+key, exp)
 }
-func MediaURL(c config.Config, r2, gcs, s3key string) string {
+func MediaURL(appConfig config.Config, r2, gcs, s3key string) string {
 	key, provider := r2, "r2"
 	if key == "" {
 		key, provider = gcs, "gcs"
@@ -46,32 +46,32 @@ func MediaURL(c config.Config, r2, gcs, s3key string) string {
 		return key
 	}
 	if strings.HasPrefix(key, "local/") {
-		return LocalURL(c, strings.TrimPrefix(key, "local/"))
+		return LocalURL(appConfig, strings.TrimPrefix(key, "local/"))
 	}
-	if provider == "gcs" && c.GCSAccessKey == "" && c.GCSBucket != "" {
-		return NativeURL(c, key)
+	if provider == "gcs" && appConfig.GCSAccessKey == "" && appConfig.GCSBucket != "" {
+		return NativeURL(appConfig, key)
 	}
 	public := ""
 	if provider == "r2" {
-		public = c.R2PublicURL
+		public = appConfig.R2PublicURL
 	} else if provider == "s3" {
-		public = c.S3PublicURL
+		public = appConfig.S3PublicURL
 	}
 	if public != "" {
 		return strings.TrimRight(public, "/") + "/" + key
 	}
-	return PresignedURL(c, provider, key)
+	return PresignedURL(appConfig, provider, key)
 }
 
-func PresignedURL(c config.Config, provider, key string) string {
-	store, e := New(c, provider)
-	if e != nil {
+func PresignedURL(appConfig config.Config, provider, key string) string {
+	store, err := New(appConfig, provider)
+	if err != nil {
 		return ""
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	uri, e := store.GetURL(ctx, key)
-	if e != nil {
+	uri, err := store.GetURL(ctx, key)
+	if err != nil {
 		return ""
 	}
 	return uri

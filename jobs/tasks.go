@@ -5,4 +5,7 @@ import (
 	"litloop/backend/internal/models"
 )
 
-func (s *Handler) TaskStatus(q *Request) any { q.Admin(); return Get[models.Task](s.DB, q.ID("id")) }
+func (handler *Handler) TaskStatus(req *Request) any {
+	req.Admin()
+	return Get[models.Task](handler.DB, req.ID("id"))
+}

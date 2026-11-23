@@ -8,14 +8,14 @@ import (
 	"net/http"
 )
 
-func (s *Server) FetchJSON(q *Request, method, target string, body []byte, headers map[string]string) any {
-	req, e := http.NewRequestWithContext(q.R.Context(), method, target, bytes.NewReader(body))
-	Check(e)
-	for k, v := range headers {
-		req.Header.Set(k, v)
+func (server *Server) FetchJSON(req *Request, method, target string, body []byte, headers map[string]string) any {
+	httpReq, err := http.NewRequestWithContext(req.R.Context(), method, target, bytes.NewReader(body))
+	Check(err)
+	for key, value := range headers {
+		httpReq.Header.Set(key, value)
 	}
-	res, e := s.Client.Do(req)
-	if e != nil {
+	res, err := server.Client.Do(httpReq)
+	if err != nil {
 		Fail(502, "External service is unavailable")
 	}
 	defer res.Body.Close()

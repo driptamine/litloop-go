@@ -8,10 +8,10 @@ import (
 )
 
 func main() {
-	s := api.New(nil, config.Config{})
+	server := api.New(nil, config.Config{})
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	if e := enc.Encode(s.OpenAPI()); e != nil {
-		panic(e)
+	if err := enc.Encode(server.OpenAPI()); err != nil {
+		panic(err)
 	}
 }

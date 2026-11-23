@@ -13,22 +13,22 @@ import (
 	"litloop/backend/internal/models"
 )
 
-func Open(c config.Config) (*gorm.DB, error) {
+func Open(appConfig config.Config) (*gorm.DB, error) {
 	var driver gorm.Dialector
-	if c.DatabaseURL != "" {
-		driver = postgres.New(postgres.Config{DSN: c.DatabaseURL, PreferSimpleProtocol: true})
+	if appConfig.DatabaseURL != "" {
+		driver = postgres.New(postgres.Config{DSN: appConfig.DatabaseURL, PreferSimpleProtocol: true})
 	} else {
-		driver = sqlite.Open(c.SQLitePath + "?_foreign_keys=on&_busy_timeout=10000")
+		driver = sqlite.Open(appConfig.SQLitePath + "?_foreign_keys=on&_busy_timeout=10000")
 	}
-	db, e := gorm.Open(driver, &gorm.Config{TranslateError: true, Logger: logger.Default.LogMode(logger.Silent)})
-	if e != nil {
-		return nil, e
+	db, err := gorm.Open(driver, &gorm.Config{TranslateError: true, Logger: logger.Default.LogMode(logger.Silent)})
+	if err != nil {
+		return nil, err
 	}
-	pool, e := db.DB()
-	if e != nil {
-		return nil, e
+	pool, err := db.DB()
+	if err != nil {
+		return nil, err
 	}
-	if c.DatabaseURL == "" {
+	if appConfig.DatabaseURL == "" {
 		pool.SetMaxOpenConns(1)
 	} else {
 		pool.SetMaxOpenConns(20)
@@ -60,8 +60,8 @@ func migrateDjangoSchema(tx *gorm.DB) error {
 		return err
 	}
 	var columns []struct {
-		TableName  string
-		ColumnName string
+		TableName	string
+		ColumnName	string
 	}
 	if err := tx.Raw(`SELECT table_name, column_name FROM information_schema.columns
 		WHERE table_schema = current_schema()`).Scan(&columns).Error; err != nil {

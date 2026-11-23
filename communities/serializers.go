@@ -5,40 +5,40 @@ import (
 	"litloop/backend/internal/models"
 )
 
-func (s *Handler) CommunityJSON(c models.Community, u *models.User) map[string]any {
-	o := Object(c)
+func (handler *Handler) CommunityJSON(community models.Community, user *models.User) map[string]any {
+	out := Object(community)
 	var count int64
-	Check(s.DB.Model(&models.CommunityMembership{}).Where("community_id = ?", c.ID).Count(&count).Error)
-	o["members_count"] = count
-	o["member_count"] = count
-	o["created_by"] = c.CreatedByID
-	creator := Get[models.User](s.DB, c.CreatedByID)
-	o["created_by_username"] = creator.Username
-	o["is_member"] = false
-	o["role"] = nil
-	if u != nil {
-		var m models.CommunityMembership
-		if s.DB.First(&m, "community_id = ? AND user_id = ?", c.ID, u.ID).Error == nil {
-			o["is_member"] = true
-			o["role"] = m.Role
+	Check(handler.DB.Model(&models.CommunityMembership{}).Where("community_id = ?", community.ID).Count(&count).Error)
+	out["members_count"] = count
+	out["member_count"] = count
+	out["created_by"] = community.CreatedByID
+	creator := Get[models.User](handler.DB, community.CreatedByID)
+	out["created_by_username"] = creator.Username
+	out["is_member"] = false
+	out["role"] = nil
+	if user != nil {
+		var membership models.CommunityMembership
+		if handler.DB.First(&membership, "community_id = ? AND user_id = ?", community.ID, user.ID).Error == nil {
+			out["is_member"] = true
+			out["role"] = membership.Role
 		}
 	}
-	o["user_is_member"] = o["is_member"]
-	o["user_role"] = o["role"]
-	return o
+	out["user_is_member"] = out["is_member"]
+	out["user_role"] = out["role"]
+	return out
 }
-func (s *Handler) CommunityPostJSON(cp models.CommunityPost, u *models.User) map[string]any {
-	o := s.PostJSON(Get[models.Post](s.DB, cp.PostID), u)
-	c := Get[models.Community](s.DB, cp.CommunityID)
-	o["community_id"] = c.ID
-	o["community_name"] = c.Name
-	o["status"] = cp.Status
-	o["requested_by"] = PublicUser(Get[models.User](s.DB, cp.RequestedByID))
-	o["reviewed_by"] = nil
-	o["reviewed_at"] = cp.ReviewedAt
+func (handler *Handler) CommunityPostJSON(cp models.CommunityPost, user *models.User) map[string]any {
+	out := handler.PostJSON(Get[models.Post](handler.DB, cp.PostID), user)
+	community := Get[models.Community](handler.DB, cp.CommunityID)
+	out["community_id"] = community.ID
+	out["community_name"] = community.Name
+	out["status"] = cp.Status
+	out["requested_by"] = PublicUser(Get[models.User](handler.DB, cp.RequestedByID))
+	out["reviewed_by"] = nil
+	out["reviewed_at"] = cp.ReviewedAt
 	if cp.ReviewedByID != nil {
-		o["reviewed_by"] = PublicUser(Get[models.User](s.DB, *cp.ReviewedByID))
+		out["reviewed_by"] = PublicUser(Get[models.User](handler.DB, *cp.ReviewedByID))
 	}
-	o["community_post_id"] = cp.ID
-	return o
+	out["community_post_id"] = cp.ID
+	return out
 }

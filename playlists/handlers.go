@@ -6,39 +6,39 @@ import (
 	"strconv"
 )
 
-func (s *Handler) Playlist(q *Request) any {
-	if q.R.Method == "POST" {
-		b := q.Body()
-		title := Str(b["title"])
+func (handler *Handler) Playlist(req *Request) any {
+	if req.R.Method == "POST" {
+		body := req.Body()
+		title := Str(body["title"])
 		if title == "" {
-			title = Str(b["name"])
+			title = Str(body["name"])
 		}
 		if title == "" {
 			Fail(400, "name is required")
 		}
-		p := models.Playlist{Title: Truncate(Clean(title), 99), Description: Clean(Str(b["description"])), UserID: Ptr(q.User.ID), FriendlyToken: Token()[:12]}
-		Check(s.DB.Create(&p).Error)
-		q.Status = 201
-		return s.PlaylistJSON(p)
+		playlist := models.Playlist{Title: Truncate(Clean(title), 99), Description: Clean(Str(body["description"])), UserID: Ptr(req.User.ID), FriendlyToken: Token()[:12]}
+		Check(handler.DB.Create(&playlist).Error)
+		req.Status = 201
+		return handler.PlaylistJSON(playlist)
 	}
-	if q.Param("key") != "" {
-		var p models.Playlist
-		key := q.Param("key")
-		if n, e := strconv.ParseInt(key, 10, 64); e == nil {
-			Check(s.DB.First(&p, n).Error)
+	if req.Param("key") != "" {
+		var playlist models.Playlist
+		key := req.Param("key")
+		if parsed, err := strconv.ParseInt(key, 10, 64); err == nil {
+			Check(handler.DB.First(&playlist, parsed).Error)
 		} else {
-			Check(s.DB.First(&p, "friendly_token = ?", key).Error)
+			Check(handler.DB.First(&playlist, "friendly_token = ?", key).Error)
 		}
-		return s.PlaylistJSON(p)
+		return handler.PlaylistJSON(playlist)
 	}
-	db := s.DB.Model(&models.Playlist{})
-	if author := q.R.URL.Query().Get("author"); author != "" {
-		db = db.Where("user_id IN (?)", s.DB.Model(&models.User{}).Select("id").Where("username = ?", author))
+	db := handler.DB.Model(&models.Playlist{})
+	if author := req.R.URL.Query().Get("author"); author != "" {
+		db = db.Where("user_id IN (?)", handler.DB.Model(&models.User{}).Select("id").Where("username = ?", author))
 	}
-	result := q.Page(db.Order("id DESC"), &[]models.Playlist{}, func(v any) any {
+	result := req.Page(db.Order("id DESC"), &[]models.Playlist{}, func(value any) any {
 		out := []any{}
-		for _, p := range *v.(*[]models.Playlist) {
-			out = append(out, s.PlaylistJSON(p))
+		for _, playlist := range *value.(*[]models.Playlist) {
+			out = append(out, handler.PlaylistJSON(playlist))
 		}
 		return out
 	}).(map[string]any)

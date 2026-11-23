@@ -10,13 +10,13 @@ import (
 	"litloop/backend/internal/config"
 )
 
-func TestSearchPreflightAllowsFrontendHeaders(t *testing.T) {
+func TestSearchPreflightAllowsFrontendHeaders(tester *testing.T) {
 	const origin = "https://litloop.netlify.app"
 	const path = "/queries/google/firefox/search"
-	s := NewServer(nil, config.Config{Origins: []string{origin}})
-	t.Cleanup(s.Hub.Close)
-	s.Route(http.MethodGet, path, false, func(*Request) any {
-		t.Fatal("preflight reached the search handler")
+	server := NewServer(nil, config.Config{Origins: []string{origin}})
+	tester.Cleanup(server.Hub.Close)
+	server.Route(http.MethodGet, path, false, func(*Request) any {
+		tester.Fatal("preflight reached the search handler")
 		return nil
 	})
 
@@ -26,18 +26,18 @@ func TestSearchPreflightAllowsFrontendHeaders(t *testing.T) {
 	request.Header.Set("Access-Control-Request-Method", http.MethodGet)
 	request.Header.Set("Access-Control-Request-Headers", strings.Join(frontendHeaders, ","))
 	response := httptest.NewRecorder()
-	s.ServeHTTP(response, request)
+	server.ServeHTTP(response, request)
 
 	if response.Code != http.StatusOK {
-		t.Fatalf("preflight status = %d, want %d", response.Code, http.StatusOK)
+		tester.Fatalf("preflight status = %d, want %d", response.Code, http.StatusOK)
 	}
 	if got := response.Header().Get("Access-Control-Allow-Origin"); got != origin {
-		t.Fatalf("allowed origin = %q, want %q", got, origin)
+		tester.Fatalf("allowed origin = %q, want %q", got, origin)
 	}
 	allowed := strings.Split(strings.ToLower(response.Header().Get("Access-Control-Allow-Headers")), ", ")
 	for _, name := range frontendHeaders {
 		if !slices.Contains(allowed, name) {
-			t.Errorf("preflight did not allow %q", name)
+			tester.Errorf("preflight did not allow %q", name)
 		}
 	}
 }
