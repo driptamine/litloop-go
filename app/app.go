@@ -101,6 +101,7 @@ func New(db *gorm.DB, appConfig config.Config) *httpapi.Server {
 	server.CreateGroup = chatsHandler.CreateGroup
 	server.DirectChat = chatsHandler.DirectChat
 	server.EncodeVideo = videosHandler.EncodeVideo
+	server.VideoUpdate = videosHandler.VideoUpdate
 	server.FindTrack = tracksHandler.FindTrack
 	server.ForgotPassword = usersHandler.ForgotPassword
 	server.Gemini = chatsHandler.Gemini

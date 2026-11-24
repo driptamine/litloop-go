@@ -22,6 +22,7 @@ func Register(server *Server) {
 	server.Route("POST", "/videos/create_video", true, server.UploadComplete)
 	server.Route("POST", "/videos/launch-spot", true, server.LaunchSpot)
 	server.Route("GET", "/videos/{id:[0-9]+}", false, func(req *Request) any { return server.MediaJSON(server.VideoAccess(req, req.ID("id"))) })
+	server.Route("PUT,PATCH", "/videos/{id:[0-9]+}", true, server.VideoUpdate)
 	server.Route("POST", "/videos/api/save_playback", true, server.Playback)
 	server.Route("GET", "/videos/api/get_playback_time", true, server.Playback)
 }

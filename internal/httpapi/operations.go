@@ -151,6 +151,7 @@ type Operations struct {
 	UserMediaKind         func(q *Request, kind string) any
 	Vacancies             func(q *Request) any
 	VideoAccess           func(q *Request, id int64) models.Video
+	VideoUpdate           func(q *Request) any
 	View                  func(q *Request) any
 	VoiceJSON             func(v models.VoiceMessage) any
 	VoIP                  func(q *Request, b map[string]any) bool

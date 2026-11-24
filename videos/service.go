@@ -16,3 +16,27 @@ func (handler *Handler) VideoAccess(req *Request, id int64) models.Video {
 	}
 	return video
 }
+
+func (handler *Handler) VideoUpdate(req *Request) any {
+	video := Get[models.Video](handler.DB, req.ID("id"))
+	Owned(Val(video.UserID), req.User.ID)
+	body := req.Body()
+	if title, ok := body["title"]; ok {
+		video.Title = Str(title)
+	}
+	if description, ok := body["description"]; ok {
+		video.Description = Str(description)
+	}
+	if visibility, ok := body["visibility"]; ok {
+		v := Str(visibility)
+		if v != "private" && v != "public" && v != "unlisted" {
+			Fail(400, "Invalid visibility")
+		}
+		video.Visibility = v
+	}
+	if thumbnail, ok := body["thumbnail"]; ok {
+		video.Thumbnail = Str(thumbnail)
+	}
+	Check(handler.DB.Save(&video).Error)
+	return handler.MediaJSON(video)
+}
